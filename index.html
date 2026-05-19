@@ -455,7 +455,7 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
         <div class="stat-card">
           <div class="stat-label">進行中</div>
           <div class="stat-value sv-blue" id="stat-active">—</div>
-          <div class="stat-sub">送件 + 報價 + 維修中</div>
+          <div class="stat-sub">送件 + 報修中</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">⚠️ 逾時警示</div>
@@ -481,8 +481,7 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
         </select>
         <select class="filter-select" id="filter-status" onchange="filterOrders()">
           <option value="">全部狀態</option>
-          <option>送件</option><option>報價</option><option>維修</option>
-          <option>完成</option><option>取消</option>
+          <option>送件</option><option>報修</option><option>完成</option><option>取消</option>
         </select>
         <select class="filter-select" id="filter-owner" onchange="filterOrders()">
           <option value="">全部所有人</option>
@@ -577,7 +576,7 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
                 <input id="s-alert-quote" type="number" value="10" min="1" max="30"/>
               </div>
               <div class="field">
-                <label>維修中超過幾天警示</label>
+                <label>報修中超過幾天警示</label>
                 <input id="s-alert-repair" type="number" value="10" min="1" max="60"/>
               </div>
             </div>
@@ -645,8 +644,7 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
         <div class="field"><label>送修店家</label><select id="f-shop"><option>明豐</option><option>米奇</option><option>原廠</option></select></div>
         <div class="field"><label>進度狀態</label>
           <select id="f-status">
-            <option>送件</option><option>報價</option><option>維修</option>
-            <option>完成</option><option>取消</option>
+            <option>送件</option><option>報修</option><option>完成</option><option>取消</option>
           </select>
         </div>
       </div>
@@ -725,10 +723,10 @@ let ALERT_REPAIR_DAYS = parseInt(localStorage.getItem('alert_repair') || '10');
 let GS_URL = localStorage.getItem('gs_url') || 'https://script.google.com/macros/s/AKfycbw1QbJIVwyQEOoGBU5RZboEBXbXm-bqmmH5E8F8HrrpJZoOWR4xcRSab7A7YxykE3A-/exec';
 let gsConnected = false;
 
-const STEPS = ['送件','報價','維修','完成'];
-const STATUS_MAP = { '送件':0, '報價':1, '維修':2, '完成':3, '取消':-1 };
+const STEPS = ['送件','報修','完成'];
+const STATUS_MAP = { '送件':0, '報修':1, '完成':2, '取消':-1 };
 const STATUS_CLASS = {
-  '送件':'b-quote','報價':'b-confirm','維修':'b-repair','完成':'b-done','取消':'b-cancel'
+  '送件':'b-quote','報修':'b-repair','完成':'b-done','取消':'b-cancel'
 };
 
 function ownerLabel(o) {
@@ -821,7 +819,7 @@ function saveAlertSettings() {
   localStorage.setItem('alert_quote', ALERT_QUOTE_DAYS);
   localStorage.setItem('alert_repair', ALERT_REPAIR_DAYS);
   updateStats(); filterOrders();
-  alert(`已儲存：送件 ${ALERT_QUOTE_DAYS} 天、維修中 ${ALERT_REPAIR_DAYS} 天`);
+  alert(`已儲存：送件 ${ALERT_QUOTE_DAYS} 天、報修中 ${ALERT_REPAIR_DAYS} 天`);
 }
 
 
@@ -829,8 +827,8 @@ function saveAlertSettings() {
 function save() { localStorage.setItem('repair_orders_v2', JSON.stringify(orders)); }
 function daysSince(d) { return Math.floor((new Date() - new Date(d)) / 86400000); }
 function isOverdueQuote(o) { return o.status === '送件' && daysSince(o.date) >= ALERT_QUOTE_DAYS; }
-function isOverdueRepair(o) { return o.status === '維修' && daysSince(o.date) >= ALERT_REPAIR_DAYS; }
-function isActive(o) { return ['送件','報價','維修'].includes(o.status); }
+function isOverdueRepair(o) { return o.status === '報修' && daysSince(o.date) >= ALERT_REPAIR_DAYS; }
+function isActive(o) { return ['送件','報修'].includes(o.status); }
 function fmtM(n) { if (n===null||n===undefined||n==='') return '—'; return '$'+Number(n).toLocaleString(); }
 function calcProfit(o) {
   const isWarranty = o.warranty || o.ownerType === '保固免費';
@@ -850,8 +848,8 @@ function nowStr() { return new Date().toLocaleString('zh-TW',{hour12:false}).rep
 function progressHtml(status) {
   if (status === '取消') return `<div class="progress-wrap"><span class="badge b-cancel">取消</span></div>`;
   const idx = STATUS_MAP[status] ?? 0;
-  const pcts = ['8%','36%','66%','100%'];
-  const fillCls = ['pf-0','pf-1','pf-2','pf-4'][idx] || 'pf-0';
+  const pcts = ['8%','50%','100%'];
+  const fillCls = ['pf-0','pf-2','pf-4'][idx] || 'pf-0';
   const labels = STEPS.map((s, i) => {
     const cls = i < idx ? 'done' : i === idx ? 'current' : '';
     return `<span class="progress-step ${cls}">${s}</span>`;
@@ -877,7 +875,7 @@ function updateAlerts() {
     html += `<div class="alert alert-quote">
       <span class="alert-icon">⏰</span>
       <div class="alert-body">
-        <div class="alert-title">送件逾時 — 超過 ${ALERT_QUOTE_DAYS} 天尚未報價（${qList.length} 件）</div>
+        <div class="alert-title">送件逾時 — 超過 ${ALERT_QUOTE_DAYS} 天尚未回報（${qList.length} 件）</div>
         <div class="alert-items">${items}</div>
       </div>
     </div>`;
@@ -887,7 +885,7 @@ function updateAlerts() {
     html += `<div class="alert alert-repair">
       <span class="alert-icon">🔧</span>
       <div class="alert-body">
-        <div class="alert-title">維修逾時 — 超過 ${ALERT_REPAIR_DAYS} 天仍在維修（${rList.length} 件）</div>
+        <div class="alert-title">報修逾時 — 超過 ${ALERT_REPAIR_DAYS} 天仍在報修（${rList.length} 件）</div>
         <div class="alert-items">${items}</div>
       </div>
     </div>`;
@@ -990,8 +988,8 @@ function openDetail(id) {
   const profit = calcProfit(o);
   const chargeDisplay = isWarranty ? '$0（保固內）' : fmtM(o.charge);
   const oq = isOverdueQuote(o), or_ = isOverdueRepair(o);
-  const alertHtml = oq ? `<div class="alert alert-quote" style="margin-bottom:12px"><span class="alert-icon">⏰</span><span>送件已 ${daysSince(o.date)} 天，超過設定上限仍未報價</span></div>` :
-    or_ ? `<div class="alert alert-repair" style="margin-bottom:12px"><span class="alert-icon">🔧</span><span>維修中已 ${daysSince(o.date)} 天，超過設定上限</span></div>` : '';
+  const alertHtml = oq ? `<div class="alert alert-quote" style="margin-bottom:12px"><span class="alert-icon">⏰</span><span>送件已 ${daysSince(o.date)} 天，超過設定上限仍未回報</span></div>` :
+    or_ ? `<div class="alert alert-repair" style="margin-bottom:12px"><span class="alert-icon">🔧</span><span>報修中已 ${daysSince(o.date)} 天，超過設定上限</span></div>` : '';
   document.getElementById('detail-body').innerHTML = `
     ${alertHtml}
     ${progressDetailHtml(o.status)}
@@ -1037,7 +1035,7 @@ function editOrder() {
   if (!ot) ot = o.owner === '我們的' ? '我們的' : '客人的';
   document.getElementById('f-ownerType').value = ot;
   document.getElementById('f-shop').value = o.shop;
-  document.getElementById('f-status').value = o.status;
+  document.getElementById('f-status').value = ['送件','報修','完成','取消'].includes(o.status) ? o.status : (o.status === '報價' || o.status === '維修' ? '報修' : '送件');
   document.getElementById('f-charge').value = (o.warranty || o.ownerType === '保固免費') ? '' : (o.charge ?? '');
   document.getElementById('f-cost').value = o.cost ?? '';
   document.getElementById('f-purchase-cost').value = o.purchaseCost ?? '';
