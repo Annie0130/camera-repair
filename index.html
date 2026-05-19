@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相機維修管理</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:       #f7f7f5;
+  --surface:  #ffffff;
+  --surface2: #f2f2ef;
+  --border:   #e8e8e3;
+  --border2:  #d4d4ce;
+  --text:     #1a1a18;
+  --text2:    #6b6b65;
+  --text3:    #a8a8a0;
+  --blue:     #2563eb;
+  --blue-bg:  #eff6ff;
+  --blue-bd:  #bfdbfe;
+  --green:    #16a34a;
+  --green-bg: #f0fdf4;
+  --green-bd: #bbf7d0;
+  --amber:    #d97706;
+  --amber-bg: #fffbeb;
+  --amber-bd: #fde68a;
+  --red:      #dc2626;
+  --red-bg:   #fef2f2;
+  --red-bd:   #fecaca;
+  --purple:   #7c3aed;
+  --purple-bg:#f5f3ff;
+  --purple-bd:#ddd6fe;
+  --teal:     #0d9488;
+  --teal-bg:  #f0fdfa;
+  --teal-bd:  #99f6e4;
+  --radius:   10px;
+  --radius-sm:6px;
+  --shadow:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+/* ── Layout ── */
+.app{display:flex;min-height:100vh}
+
+.sidebar{
+  width:228px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;
+}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid var(--border)}
+.logo-mark{display:flex;align-items:center;gap:10px;margin-bottom:0}
+.logo-icon{
+  width:34px;height:34px;background:var(--text);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;
+}
+.logo-text .title{font-size:13px;font-weight:700;letter-spacing:-.01em;color:var(--text)}
+.logo-text .sub{font-size:11px;color:var(--text3);margin-top:1px}
+
+.sidebar-nav{padding:10px 10px;flex:1}
+.nav-group-label{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:8px 10px 4px}
+.nav-item{
+  display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--radius-sm);
+  cursor:pointer;color:var(--text2);font-size:13px;transition:all .12s;margin-bottom:1px;user-select:none;
+}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--text);color:#fff}
+.nav-item .ni{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{
+  margin-left:auto;background:var(--red);color:#fff;
+  font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center;
+}
+.nav-item.active .nav-badge{background:rgba(255,255,255,.25);color:#fff}
+
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+.main{margin-left:228px;flex:1;display:flex;flex-direction:column}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 24px;height:54px;display:flex;align-items:center;gap:12px;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-title{font-size:15px;font-weight:600;flex:1;color:var(--text)}
+.search-wrap{position:relative}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
+.topbar-search{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:7px 12px 7px 32px;color:var(--text);font-size:13px;font-family:inherit;
+  width:220px;outline:none;transition:all .15s;
+}
+.topbar-search:focus{background:var(--surface);border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.topbar-search::placeholder{color:var(--text3)}
+
+.content{padding:24px;flex:1}
+.page{display:none}.page.active{display:block}
+
+/* ── Alerts ── */
+.alert-section{margin-bottom:16px;display:flex;flex-direction:column;gap:8px}
+.alert{
+  display:flex;align-items:flex-start;gap:10px;padding:11px 14px;
+  border-radius:var(--radius);border:1px solid;font-size:13px;
+}
+.alert-quote{background:var(--amber-bg);border-color:var(--amber-bd);color:#92400e}
+.alert-repair{background:var(--red-bg);border-color:var(--red-bd);color:#991b1b}
+.alert-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.alert-body{flex:1}
+.alert-title{font-weight:600;margin-bottom:2px}
+.alert-items{font-size:12px;opacity:.85;line-height:1.6}
+
+/* ── Stats ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);
+}
+.stat-label{font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+.stat-value{font-size:26px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.sv-blue{color:var(--blue)}.sv-green{color:var(--green)}.sv-amber{color:var(--amber)}.sv-red{color:var(--red)}.sv-purple{color:var(--purple)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.filter-select{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:7px 11px;color:var(--text);font-size:13px;font-family:inherit;
+  outline:none;cursor:pointer;transition:border-color .15s;
+}
+.filter-select:focus{border-color:var(--blue)}
+.spacer{flex:1}
+
+/* ── Buttons ── */
+.btn{
+  padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-family:inherit;
+  cursor:pointer;border:none;font-weight:500;transition:all .12s;
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.btn-primary{background:var(--text);color:#fff}
+.btn-primary:hover{background:#2d2d2b}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-danger{background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red)}
+.btn-danger:hover{background:#fee2e2}
+
+/* ── Table ── */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+thead th{
+  padding:10px 14px;text-align:left;font-size:11px;font-weight:600;
+  color:var(--text3);text-transform:uppercase;letter-spacing:.05em;
+  border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap;
+}
+tbody td{padding:13px 14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .1s;cursor:pointer}
+tbody tr:hover{background:var(--surface2)}
+tbody tr.row-overdue-quote{background:#fffbeb}
+tbody tr.row-overdue-quote:hover{background:#fef3c7}
+tbody tr.row-overdue-repair{background:#fef2f2}
+tbody tr.row-overdue-repair:hover{background:#fee2e2}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+.bold{font-weight:600}
+
+/* ── Progress bar ── */
+.progress-wrap{min-width:200px}
+.progress-track{
+  height:5px;background:var(--surface2);border-radius:3px;
+  overflow:hidden;margin-bottom:5px;border:1px solid var(--border);
+}
+.progress-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.pf-0{background:#d1d5db;width:10%}
+.pf-1{background:var(--amber);width:30%}
+.pf-2{background:var(--blue);width:55%}
+.pf-3{background:var(--purple);width:80%}
+.pf-4{background:var(--green);width:100%}
+.pf-cancel{background:var(--red);width:100%}
+.progress-labels{display:flex;gap:0;overflow:hidden}
+.progress-step{
+  font-size:10px;flex:1;text-align:center;padding:0 1px;
+  color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:color .2s;font-weight:400;
+}
+.progress-step.done{color:var(--text2)}
+.progress-step.current{color:var(--text);font-weight:600}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.b-quote{background:var(--amber-bg);color:#92400e;border-color:var(--amber-bd)}
+.b-confirm{background:var(--blue-bg);color:#1e40af;border-color:var(--blue-bd)}
+.b-repair{background:#eff6ff;color:var(--blue);border-color:var(--blue-bd)}
+.b-ready{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bd)}
+.b-done{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.b-ship{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-bd)}
+.b-cancel{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+
+.shop-tag{display:inline-block;padding:2px 9px;border-radius:4px;font-size:11px;font-weight:600}
+.shop-mf{background:#eff6ff;color:#1e40af}
+.shop-mq{background:var(--purple-bg);color:var(--purple)}
+.shop-orig{background:var(--amber-bg);color:#92400e}
+
+.overdue-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);
+  border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;
+}
+.overdue-chip-amber{background:var(--amber-bg);color:#92400e;border-color:var(--amber-bd)}
+
+/* ── Modal ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;border:1px solid var(--border);width:600px;max-width:100%;padding:24px;box-shadow:var(--shadow-md);position:relative}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{width:28px;height:28px;background:var(--surface2);border:none;border-radius:6px;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .12s}
+.modal-close:hover{background:var(--border);color:var(--text)}
+
+.fsec{margin-bottom:18px}
+.fsec-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.full{grid-column:1/-1}
+.field label{font-size:11px;color:var(--text2);font-weight:600}
+.field input,.field select,.field textarea{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:all .15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{background:var(--surface);border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.07)}
+.field textarea{height:60px;resize:vertical}
+
+.cost-notice{
+  display:flex;align-items:center;gap:8px;background:var(--red-bg);border:1px solid var(--red-bd);
+  border-radius:var(--radius-sm);padding:9px 12px;font-size:12px;color:#991b1b;margin-bottom:10px;
+}
+.profit-preview{
+  background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;
+  display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:13px;border:1px solid var(--border);
+}
+.profit-preview .label{color:var(--text2)}
+.profit-preview .val{font-weight:700;font-size:15px}
+
+.modal-ft{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* ── Detail ── */
+.detail-row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;gap:16px}
+.detail-row:last-child{border-bottom:none}
+.detail-label{color:var(--text3);flex-shrink:0;min-width:90px;font-size:12px;font-weight:500}
+.detail-value{text-align:right;color:var(--text)}
+
+/* Progress detail */
+.progress-detail{margin:14px 0;padding:14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)}
+.pd-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.pd-steps{display:flex;align-items:center;gap:0;position:relative}
+.pd-step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative}
+.pd-dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);background:var(--surface);z-index:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;transition:all .2s}
+.pd-dot.done{background:var(--green);border-color:var(--green);color:#fff}
+.pd-dot.current{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.pd-line{position:absolute;top:9px;left:50%;right:-50%;height:2px;background:var(--border);z-index:0}
+.pd-line.done{background:var(--green)}
+.pd-label{font-size:10px;margin-top:5px;text-align:center;color:var(--text3);line-height:1.3}
+.pd-label.done{color:var(--green);font-weight:500}
+.pd-label.current{color:var(--blue);font-weight:700}
+
+/* Timeline */
+.timeline{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.tl-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.tl-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;font-size:12px}
+.tl-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);margin-top:4px;flex-shrink:0}
+.tl-dot.old{background:var(--border2)}
+.tl-time{color:var(--text3);min-width:105px;font-size:11px}
+.tl-text{color:var(--text2)}
+
+/* ── Report ── */
+.report-section{margin-bottom:24px}
+.report-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.shop-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);
+}
+.shop-cnt{font-size:12px;color:var(--text3);margin-right:auto}
+.shop-nums{display:flex;gap:20px;font-size:13px}
+.shop-nums span{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.num-lbl{font-size:10px;color:var(--text3);font-weight:500}
+.num-in{color:var(--blue);font-weight:700}
+.num-out{color:var(--red);font-weight:700}
+.num-profit{color:var(--green);font-weight:700}
+.warranty-card{
+  background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--radius);
+  padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;
+}
+.bar-chart{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px}
+.bar-row:last-child{margin-bottom:0}
+.bar-lbl{width:44px;text-align:right;color:var(--text2);flex-shrink:0}
+.bar-track{flex:1;height:20px;background:var(--surface2);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:11px;font-weight:600}
+.bf-blue{background:var(--blue-bg);color:#1e40af}
+.bf-purple{background:var(--purple-bg);color:var(--purple)}
+.bf-amber{background:var(--amber-bg);color:#92400e}
+
+.month-sel{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.month-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:15px;transition:all .12s}
+.month-btn:hover{background:var(--surface2);color:var(--text)}
+.month-lbl{font-size:14px;font-weight:600;min-width:80px;text-align:center}
+
+.profit-pos{color:var(--green);font-weight:600}
+.profit-neg{color:var(--red);font-weight:600}
+.profit-pend{color:var(--text3);font-size:12px;font-style:italic}
+.hidden-cost{color:var(--text3);font-size:12px}
+.empty{padding:36px;text-align:center;color:var(--text3);font-size:13px}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── Supabase setup banner ── */
+.setup-banner{
+  background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:var(--radius);
+  padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1e40af;
+  display:flex;align-items:center;gap:10px;
+}
+.setup-banner a{color:var(--blue);font-weight:600;cursor:pointer;text-decoration:underline}
+
+/* ── Quote Modal ── */
+.quote-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+  z-index:2000;align-items:center;justify-content:center;padding:20px;
+}
+.quote-overlay.open{display:flex}
+.quote-actions{
+  position:absolute;top:16px;right:16px;display:flex;gap:8px;z-index:10;
+}
+.quote-wrap{position:relative;max-height:90vh;overflow-y:auto}
+
+/* Quote card — designed for screenshot */
+.quote-card{
+  background:#fff;width:420px;max-width:100%;
+  border-radius:16px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+  font-family:'Noto Sans TC',sans-serif;
+}
+.qc-header{
+  background:linear-gradient(135deg,#1a1a18 0%,#3a3a36 100%);
+  color:#fff;padding:24px 24px 20px;
+}
+.qc-shop{font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.6;margin-bottom:6px}
+.qc-title{font-size:20px;font-weight:700;margin-bottom:4px}
+.qc-subtitle{font-size:12px;opacity:.55}
+.qc-date-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px}
+.qc-refno{font-size:11px;opacity:.5;font-family:'JetBrains Mono',monospace}
+.qc-validity{font-size:11px;opacity:.55;text-align:right}
+
+.qc-body{padding:20px 24px}
+.qc-section{margin-bottom:16px}
+.qc-section-label{
+  font-size:10px;font-weight:700;color:#a8a8a0;
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;
+}
+.qc-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f2f2ef;font-size:13px;gap:12px}
+.qc-row:last-child{border-bottom:none}
+.qc-lbl{color:#6b6b65;flex-shrink:0;min-width:72px;font-size:12px}
+.qc-val{color:#1a1a18;text-align:right;font-weight:500}
+
+.qc-amount-box{
+  background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+  border:1.5px solid #bbf7d0;border-radius:12px;
+  padding:16px 20px;margin:16px 0;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.qc-amount-lbl{font-size:12px;color:#16a34a;font-weight:600}
+.qc-amount-val{font-size:28px;font-weight:800;color:#15803d;letter-spacing:-.02em}
+
+.qc-warranty{
+  background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;
+  padding:12px 16px;margin-top:4px;font-size:12px;color:#0d9488;line-height:1.6;
+}
+.qc-warranty-icon{font-size:15px;margin-right:6px}
+
+.qc-expire{
+  text-align:center;font-size:11px;color:#a8a8a0;
+  padding:10px 0 4px;border-top:1px dashed #e8e8e3;margin-top:8px;
+}
+
+.qc-footer{
+  background:#fafaf8;border-top:1px solid #e8e8e3;
+  padding:14px 24px;display:flex;align-items:center;justify-content:space-between;
+}
+.qc-footer-brand{font-size:12px;color:#a8a8a0}
+.qc-footer-note{font-size:11px;color:#c4c4bb;text-align:right}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">📷</div>
+      <div class="logo-text">
+        <div class="title">維修管理系統</div>
+        <div class="sub">二手相機店</div>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="showPage('orders',this)">
+      <span class="ni">🗂</span> 維修單管理
+      <span class="nav-badge" id="overdue-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-item" onclick="showPage('report',this)">
+      <span class="ni">📊</span> 利潤報表
+    </div>
+    <div class="nav-item" onclick="showPage('settings',this)">
+      <span class="ni">⚙️</span> 設定
+    </div>
+  </nav>
+  <div class="sidebar-footer">第一版 · 本地模式<br><span id="sync-status" style="color:var(--text3)">尚未連接雲端</span></div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">維修單管理</div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="topbar-search" type="text" placeholder="搜尋型號、機身碼…" id="global-search" oninput="filterOrders()"/>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Orders -->
+    <div id="page-orders" class="page active">
+
+      <div class="alert-section" id="alert-section"></div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">進行中</div>
+          <div class="stat-value sv-blue" id="stat-active">—</div>
+          <div class="stat-sub">送件 + 報價 + 維修中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">⚠️ 逾時警示</div>
+          <div class="stat-value sv-red" id="stat-overdue">—</div>
+          <div class="stat-sub">超過 10 天</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">本月利潤</div>
+          <div class="stat-value sv-green" id="stat-profit">—</div>
+          <div class="stat-sub">已完成件</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">完成待取</div>
+          <div class="stat-value sv-purple" id="stat-ready">—</div>
+          <div class="stat-sub">待客人取件</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <select class="filter-select" id="filter-shop" onchange="filterOrders()">
+          <option value="">全部店家</option>
+          <option>明豐</option><option>米奇</option><option>原廠</option>
+        </select>
+        <select class="filter-select" id="filter-status" onchange="filterOrders()">
+          <option value="">全部狀態</option>
+          <option>送件</option><option>報價</option><option>維修</option>
+          <option>完成</option><option>取消</option>
+        </select>
+        <select class="filter-select" id="filter-owner" onchange="filterOrders()">
+          <option value="">全部所有人</option>
+          <option value="我們的">我們的</option>
+          <option value="客人的">客人的</option>
+          <option value="保固免費">保固免費</option>
+          <option value="代送修">代送修</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" onclick="openAddModal()">＋ 新增維修單</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>型號</th>
+              <th>機身碼</th>
+              <th>手寫單號</th>
+              <th>問題</th>
+              <th>所有人</th>
+              <th>維修店</th>
+              <th style="min-width:190px">進度</th>
+              <th>天數</th>
+              <th>收費</th>
+              <th>成本 🔒</th>
+              <th>利潤 🔒</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Report -->
+    <div id="page-report" class="page">
+      <div class="month-sel">
+        <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+        <div class="month-lbl" id="month-lbl">2026/03</div>
+        <button class="month-btn" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">總收費</div><div class="stat-value sv-blue" id="r-income">—</div></div>
+        <div class="stat-card"><div class="stat-label">維修成本</div><div class="stat-value sv-red" id="r-cost">—</div></div>
+        <div class="stat-card"><div class="stat-label">毛利潤</div><div class="stat-value sv-green" id="r-profit">—</div></div>
+        <div class="stat-card"><div class="stat-label">保固成本</div><div class="stat-value sv-purple" id="r-warranty">—</div><div class="stat-sub">客人不收費</div></div>
+      </div>
+      <div class="report-section">
+        <div class="report-title">各維修店分析</div>
+        <div id="shop-report"></div>
+      </div>
+      <div class="report-section">
+        <div class="report-title">收費金額對比</div>
+        <div class="bar-chart" id="margin-chart"></div>
+      </div>
+      <div class="report-section">
+        <div class="report-title">逾時未完成件（超過 10 天）</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>型號</th><th>機身碼</th><th>送修日</th><th>維修店</th><th>天數</th><th>狀態</th></tr></thead>
+            <tbody id="overdue-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="page-settings" class="page">
+      <div style="max-width:520px">
+        <div class="setup-banner">
+          🌐 連接 Supabase 雲端後，所有員工可即時同步資料
+        </div>
+        <div class="table-wrap" style="padding:24px">
+          <div class="fsec">
+            <div class="fsec-title">Supabase 雲端設定</div>
+            <div class="fgrid" style="margin-bottom:12px">
+              <div class="field full"><label>Supabase Project URL</label><input id="s-url" type="text" placeholder="https://xxx.supabase.co" value=""/></div>
+              <div class="field full"><label>Supabase Anon Key</label><input id="s-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." value=""/></div>
+            </div>
+            <button class="btn btn-primary" onclick="saveSupabaseConfig()">儲存並連線</button>
+            <div id="supabase-status" style="margin-top:10px;font-size:13px;color:var(--text3)"></div>
+          </div>
+          <div class="fsec" style="margin-top:20px">
+            <div class="fsec-title">逾時警示設定</div>
+            <div class="fgrid">
+              <div class="field">
+                <label>待報價超過幾天警示</label>
+                <input id="s-alert-quote" type="number" value="10" min="1" max="30"/>
+              </div>
+              <div class="field">
+                <label>維修中超過幾天警示</label>
+                <input id="s-alert-repair" type="number" value="10" min="1" max="60"/>
+              </div>
+            </div>
+            <button class="btn btn-ghost" style="margin-top:10px" onclick="saveAlertSettings()">儲存設定</button>
+          </div>
+          <div class="fsec" style="margin-top:20px">
+            <div class="fsec-title">報價單設定</div>
+            <div class="fgrid">
+              <div class="field"><label>店家名稱</label><input id="s-shop-name" type="text" placeholder="二手相機店"/></div>
+              <div class="field"><label>報價有效天數</label><input id="s-quote-days" type="number" value="7" min="1" max="30"/></div>
+            </div>
+            <div class="field full" style="margin-top:10px">
+              <label>保固說明文字</label>
+              <textarea id="s-warranty-text" style="height:72px" placeholder="本店相機享有 6 個月保固…"></textarea>
+            </div>
+            <button class="btn btn-ghost" style="margin-top:10px" onclick="saveQuoteSettings()">儲存報價設定</button>
+          </div>
+            <ol style="font-size:13px;color:var(--text2);line-height:2;padding-left:18px">
+              <li>前往 <strong>supabase.com</strong> 免費建立帳號</li>
+              <li>新增專案，複製 Project URL 和 Anon Key</li>
+              <li>在 SQL Editor 貼上下方建表語法執行</li>
+              <li>回到此頁面填入 URL 和 Key 後儲存</li>
+              <li>所有員工開啟同一個 HTML 檔案即可共用</li>
+            </ol>
+            <div style="margin-top:12px;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:pre-wrap;border:1px solid var(--border)">create table repair_orders (
+  id text primary key,
+  date text,
+  model text,
+  serial text,
+  issue text,
+  parts text,
+  owner text,
+  owner_type text default '',
+  shop text,
+  status text,
+  refno text default '',
+  charge numeric,
+  cost numeric,
+  warranty boolean default false,
+  contact text,
+  note text,
+  timeline jsonb default '[]'::jsonb,
+  created_at timestamptz default now()
+);
+alter table repair_orders enable row level security;
+create policy "open" on repair_orders for all using (true);</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title" id="modal-add-title">新增維修單</div>
+      <button class="modal-close" onclick="closeModal('modal-add')">✕</button>
+    </div>
+    <div class="fsec">
+      <div class="fsec-title">基本資訊</div>
+      <div class="fgrid">
+        <div class="field"><label>型號</label><input id="f-model" type="text" placeholder="Canon G7X2"/></div>
+        <div class="field"><label>機身碼</label><input id="f-serial" type="text" placeholder="03973"/></div>
+      </div>
+      <div class="fgrid" style="margin-top:10px">
+        <div class="field">
+          <label>性質</label>
+          <select id="f-ownerType" onchange="updateOwnerUI()">
+            <option value="我們的">我們的（一般）</option>
+            <option value="保固免費">我們的（保固免費送修）</option>
+            <option value="代送修">客人的（代送修）</option>
+            <option value="客人的">客人的（自行送修）</option>
+          </select>
+        </div>
+        <div class="field"><label>配件</label><select id="f-parts"><option>沒配件</option><option>前架子</option><option>後架子</option><option>前後架子</option></select></div>
+      </div>
+      <div class="fgrid" style="margin-top:10px">
+        <div class="field"><label>手寫單號</label><input id="f-refno" type="text" placeholder="例如 A-0123"/></div>
+        <div class="field" id="contact-field"><label>客人聯絡（LINE / IG）🔒</label><input id="f-contact-basic" type="text" placeholder="Line:王小明"/></div>
+      </div>
+      <div class="field full" style="margin-top:10px">
+        <label>故障原因</label>
+        <textarea id="f-issue" placeholder="描述故障狀況…"></textarea>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-title">維修資訊</div>
+      <div class="fgrid">
+        <div class="field"><label>送修店家</label><select id="f-shop"><option>明豐</option><option>米奇</option><option>原廠</option></select></div>
+        <div class="field"><label>進度狀態</label>
+          <select id="f-status">
+            <option>送件</option><option>報價</option><option>維修</option>
+            <option>完成</option><option>取消</option>
+          </select>
+        </div>
+      </div>
+      <div class="field full" style="margin-top:10px"><label>備註</label><input id="f-note" type="text" placeholder="備註…"/></div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-title">費用 🔒</div>
+      <div class="cost-notice">🔒 員工可見，不對外開放</div>
+      <div class="fgrid">
+        <div class="field"><label>向客人收費 $</label><input id="f-charge" type="number" placeholder="1200" oninput="updateProfit()"/></div>
+        <div class="field"><label>付給維修店 $ 🔒</label><input id="f-cost" type="number" placeholder="800" oninput="updateProfit()"/></div>
+      </div>
+      <div class="profit-preview"><span class="label">預估利潤</span><span class="val" id="profit-preview">—</span></div>
+      <div id="warranty-note" style="display:none;margin-top:8px;font-size:12px;padding:8px 10px;background:var(--teal-bg);border:1px solid var(--teal-bd);border-radius:var(--radius-sm);color:var(--teal)">🛡 保固免費：收費自動為 $0，只需填入維修成本</div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add')">取消</button>
+      <button class="btn btn-primary" onclick="saveOrder()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title" id="detail-title"></div>
+      <button class="modal-close" onclick="closeModal('modal-detail')">✕</button>
+    </div>
+    <div id="detail-body"></div>
+    <div class="modal-ft">
+      <button class="btn btn-danger btn-sm" onclick="deleteOrder()">刪除</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="closeModal('modal-detail')">關閉</button>
+      <button class="btn btn-ghost" onclick="openQuote()" style="border-color:var(--green-bd);color:var(--green)">📋 產生報價單</button>
+      <button class="btn btn-primary" onclick="editOrder()">編輯</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quote Overlay -->
+<div class="quote-overlay" id="quote-overlay" onclick="if(event.target===this)closeQuote()">
+  <div class="quote-wrap">
+    <div class="quote-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeQuote()" style="background:#fff">✕ 關閉</button>
+      <button class="btn btn-primary btn-sm" onclick="printQuote()">🖨 列印 / 另存PDF</button>
+    </div>
+    <div class="quote-card" id="quote-card">
+      <!-- filled by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────
+let ALERT_QUOTE_DAYS = parseInt(localStorage.getItem('alert_quote') || '10');
+let ALERT_REPAIR_DAYS = parseInt(localStorage.getItem('alert_repair') || '10');
+let SUPABASE_URL = localStorage.getItem('sb_url') || '';
+let SUPABASE_KEY = localStorage.getItem('sb_key') || '';
+let supabaseConnected = false;
+
+const STEPS = ['送件','報價','維修','完成'];
+const STATUS_MAP = { '送件':0, '報價':1, '維修':2, '完成':3, '取消':-1 };
+const STATUS_CLASS = {
+  '送件':'b-quote','報價':'b-confirm','維修':'b-repair','完成':'b-done','取消':'b-cancel'
+};
+// Owner type helpers
+function ownerLabel(o) {
+  if (o.ownerType === '保固免費') return '我們的（保固）';
+  if (o.ownerType === '代送修') return '客人（代送修）';
+  return o.owner === '我們的' ? '我們的' : '客人的';
+}
+function ownerHtml(o) {
+  const t = o.ownerType || '';
+  if (t === '保固免費') return `<span style="font-size:12px;color:var(--teal);font-weight:600">🛡 保固免費</span>`;
+  if (t === '代送修') return `<span style="font-size:12px;color:var(--purple);font-weight:600">📦 代送修</span>`;
+  if (o.owner === '我們的') return `<span style="font-size:12px;color:var(--blue)">我們的</span>`;
+  return `<span style="font-size:12px;color:var(--green)">客人的</span>`;
+}
+
+// ── Data ─────────────────────────────────────────────────
+let orders = JSON.parse(localStorage.getItem('repair_orders_v2') || '[]');
+let editingId = null, viewingId = null;
+let reportMonth = { y: 2026, m: 3 };
+
+if (orders.length === 0) {
+  const now = new Date();
+  const d = n => { const dt = new Date(now); dt.setDate(dt.getDate()-n); return dt.toISOString().slice(0,10); };
+  const ts = n => { const dt = new Date(now); dt.setDate(dt.getDate()-n); return dt.toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'-'); };
+  orders = [
+    {id:'1',date:d(4),model:'Canon G7X2',serial:'03973',issue:'閃燈bad',parts:'後架子',owner:'我們的',ownerType:'',shop:'明豐',status:'完成',refno:'A-0121',charge:1200,cost:800,warranty:false,contact:'',note:'',timeline:[{time:ts(4),text:'新增維修單'},{time:ts(1),text:'狀態更新：完成'}]},
+    {id:'2',date:d(13),model:'D-lux8',serial:'18192',issue:'入塵',parts:'後架子',owner:'客人的',ownerType:'代送修',shop:'原廠',status:'送件',refno:'A-0118',charge:null,cost:null,warranty:false,contact:'ig:蔡欣佑',note:'',timeline:[{time:ts(13),text:'新增維修單'}]},
+    {id:'3',date:d(5),model:'Canon M200+15-45',serial:'21997372',issue:'出現err60',parts:'沒配件',owner:'客人的',ownerType:'代送修',shop:'米奇',status:'報價',refno:'A-0119',charge:1800,cost:null,warranty:false,contact:'Line:何玉寶慶',note:'',timeline:[{time:ts(5),text:'新增維修單'},{time:ts(2),text:'狀態更新：報價'}]},
+    {id:'4',date:d(15),model:'EM10 三代+14-42',serial:'36988178',issue:'照片大量熱紅點',parts:'沒配件',owner:'客人的',ownerType:'代送修',shop:'米奇',status:'維修',refno:'A-0115',charge:null,cost:600,warranty:false,contact:'Line:Ann',note:'',timeline:[{time:ts(15),text:'新增維修單'},{time:ts(12),text:'狀態更新：維修'}]},
+    {id:'5',date:d(20),model:'Nikon Z 16-50',serial:'80248',issue:'不能對焦',parts:'沒配件',owner:'我們的',ownerType:'保固免費',shop:'米奇',status:'完成',refno:'A-0110',charge:0,cost:950,warranty:true,contact:'',note:'',timeline:[{time:ts(20),text:'新增維修單'},{time:ts(8),text:'狀態更新：完成（保固內）'}]},
+    {id:'6',date:d(3),model:'Canon 700D',serial:'51588838',issue:'螢幕排線壞掉',parts:'前架子',owner:'我們的',ownerType:'',shop:'明豐',status:'維修',refno:'A-0122',charge:null,cost:null,warranty:false,contact:'',note:'',timeline:[{time:ts(3),text:'新增維修單'}]},
+    {id:'7',date:d(11),model:'Fuji XS10',serial:'012826',issue:'閃燈會卡卡的',parts:'前架子',owner:'我們的',ownerType:'',shop:'米奇',status:'送件',refno:'A-0116',charge:null,cost:null,warranty:false,contact:'',note:'',timeline:[{time:ts(11),text:'新增維修單'}]},
+    {id:'8',date:d(25),model:'Sony RX100M4',serial:'93847',issue:'入塵、螢幕暗',parts:'沒配件',owner:'我們的',ownerType:'',shop:'米奇',status:'完成',refno:'A-0108',charge:2800,cost:1500,warranty:false,contact:'',note:'',timeline:[{time:ts(25),text:'新增維修單'},{time:ts(10),text:'狀態更新：完成'}]},
+  ];
+  save();
+}
+
+// ── Supabase ─────────────────────────────────────────────
+async function sbFetch(path, opts={}) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...opts.headers },
+    ...opts
+  });
+  if (!res.ok) return null;
+  return res.json().catch(() => null);
+}
+
+async function loadFromSupabase() {
+  const data = await sbFetch('repair_orders?order=date.desc');
+  if (data && Array.isArray(data)) {
+    orders = data.map(r => ({ ...r, timeline: r.timeline || [] }));
+    save();
+    return true;
+  }
+  return false;
+}
+
+async function pushToSupabase(order) {
+  if (!supabaseConnected) return;
+  await sbFetch('repair_orders', {
+    method: 'POST',
+    headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(order)
+  });
+}
+
+async function deleteFromSupabase(id) {
+  if (!supabaseConnected) return;
+  await sbFetch(`repair_orders?id=eq.${id}`, { method: 'DELETE' });
+}
+
+async function saveSupabaseConfig() {
+  SUPABASE_URL = document.getElementById('s-url').value.trim().replace(/\/$/, '');
+  SUPABASE_KEY = document.getElementById('s-key').value.trim();
+  localStorage.setItem('sb_url', SUPABASE_URL);
+  localStorage.setItem('sb_key', SUPABASE_KEY);
+  const el = document.getElementById('supabase-status');
+  el.textContent = '連線中…';
+  const ok = await loadFromSupabase();
+  if (ok) {
+    supabaseConnected = true;
+    el.textContent = '✅ 連線成功！資料已同步';
+    el.style.color = 'var(--green)';
+    document.getElementById('sync-status').textContent = '☁️ 雲端同步中';
+    updateStats(); filterOrders();
+  } else {
+    el.textContent = '❌ 連線失敗，請確認 URL 和 Key';
+    el.style.color = 'var(--red)';
+  }
+}
+
+function saveAlertSettings() {
+  ALERT_QUOTE_DAYS = parseInt(document.getElementById('s-alert-quote').value) || 10;
+  ALERT_REPAIR_DAYS = parseInt(document.getElementById('s-alert-repair').value) || 10;
+  localStorage.setItem('alert_quote', ALERT_QUOTE_DAYS);
+  localStorage.setItem('alert_repair', ALERT_REPAIR_DAYS);
+  updateStats(); filterOrders();
+  alert(`已儲存：待報價 ${ALERT_QUOTE_DAYS} 天、維修中 ${ALERT_REPAIR_DAYS} 天`);
+}
+
+// ── Utils ─────────────────────────────────────────────────
+function save() { localStorage.setItem('repair_orders_v2', JSON.stringify(orders)); }
+function daysSince(d) { return Math.floor((new Date() - new Date(d)) / 86400000); }
+function isOverdueQuote(o) { return o.status === '送件' && daysSince(o.date) >= ALERT_QUOTE_DAYS; }
+function isOverdueRepair(o) { return o.status === '維修' && daysSince(o.date) >= ALERT_REPAIR_DAYS; }
+function isActive(o) { return ['送件','報價','維修'].includes(o.status); }
+function fmtM(n) { if (n===null||n===undefined||n==='') return '—'; return '$'+Number(n).toLocaleString(); }
+function calcProfit(o) {
+  const isWarranty = o.warranty || o.ownerType === '保固免費';
+  if (isWarranty) return { val:-(o.cost||0), display:`−${fmtM(o.cost)}`, cls:'profit-neg' };
+  if (o.charge===null||o.cost===null) return { val:null, display:'待定', cls:'profit-pend' };
+  const p = o.charge - o.cost;
+  return { val:p, display:(p>=0?'+':'')+fmtM(Math.abs(p)), cls: p>=0?'profit-pos':'profit-neg' };
+}
+function shopHtml(s) {
+  const cls = s==='明豐'?'shop-mf':s==='米奇'?'shop-mq':'shop-orig';
+  return `<span class="shop-tag ${cls}">${s}</span>`;
+}
+function badgeHtml(s) { return `<span class="badge ${STATUS_CLASS[s]||'b-cancel'}">${s}</span>`; }
+function nowStr() { return new Date().toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'-'); }
+
+// ── Progress Bar ──────────────────────────────────────────
+function progressHtml(status) {
+  if (status === '取消') return `<div class="progress-wrap"><span class="badge b-cancel">取消</span></div>`;
+  const idx = STATUS_MAP[status] ?? 0;
+  const pcts = ['8%','36%','66%','100%'];
+  const fillCls = ['pf-0','pf-1','pf-2','pf-4'][idx] || 'pf-0';
+  const labels = STEPS.map((s, i) => {
+    const cls = i < idx ? 'done' : i === idx ? 'current' : '';
+    return `<span class="progress-step ${cls}">${s}</span>`;
+  }).join('');
+  return `<div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill ${fillCls}" style="width:${pcts[idx]}"></div></div>
+    <div class="progress-labels">${labels}</div>
+  </div>`;
+}
+
+// ── Alerts ────────────────────────────────────────────────
+function updateAlerts() {
+  const qList = orders.filter(isOverdueQuote);
+  const rList = orders.filter(isOverdueRepair);
+  const total = qList.length + rList.length;
+  const el = document.getElementById('alert-section');
+  const badge = document.getElementById('overdue-badge');
+  badge.textContent = total;
+  badge.style.display = total > 0 ? '' : 'none';
+  let html = '';
+  if (qList.length > 0) {
+    const items = qList.map(o=>`${o.model}（${daysSince(o.date)}天）`).join('、');
+    html += `<div class="alert alert-quote">
+      <span class="alert-icon">⏰</span>
+      <div class="alert-body">
+        <div class="alert-title">送件逾時 — 超過 ${ALERT_QUOTE_DAYS} 天尚未報價（${qList.length} 件）</div>
+        <div class="alert-items">${items}</div>
+      </div>
+    </div>`;
+  }
+  if (rList.length > 0) {
+    const items = rList.map(o=>`${o.model}（${daysSince(o.date)}天）`).join('、');
+    html += `<div class="alert alert-repair">
+      <span class="alert-icon">🔧</span>
+      <div class="alert-body">
+        <div class="alert-title">維修逾時 — 超過 ${ALERT_REPAIR_DAYS} 天仍在維修（${rList.length} 件）</div>
+        <div class="alert-items">${items}</div>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── Stats ─────────────────────────────────────────────────
+function updateStats() {
+  const active = orders.filter(isActive).length;
+  const overdue = orders.filter(o => isOverdueQuote(o) || isOverdueRepair(o)).length;
+  const ready = orders.filter(o => o.status === '完成').length;
+  const now = new Date();
+  let profit = 0;
+  orders.filter(o => { const d = new Date(o.date); return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth(); })
+    .forEach(o => { const p = calcProfit(o); if (p.val!==null) profit += p.val; });
+  document.getElementById('stat-active').textContent = active;
+  document.getElementById('stat-overdue').textContent = overdue;
+  document.getElementById('stat-profit').textContent = fmtM(profit);
+  document.getElementById('stat-ready').textContent = ready;
+  updateAlerts();
+}
+
+// ── Table ─────────────────────────────────────────────────
+function filterOrders() {
+  const search = document.getElementById('global-search').value.toLowerCase();
+  const shop = document.getElementById('filter-shop').value;
+  const status = document.getElementById('filter-status').value;
+  const owner = document.getElementById('filter-owner').value;
+  const filtered = orders.filter(o => {
+    if (shop && o.shop !== shop) return false;
+    if (status && o.status !== status) return false;
+    if (owner) {
+      if (owner === '保固免費' && o.ownerType !== '保固免費') return false;
+      if (owner === '代送修' && o.ownerType !== '代送修') return false;
+      if (owner === '我們的' && !(o.owner === '我們的' && !o.ownerType)) return false;
+      if (owner === '客人的' && !(o.owner === '客人的' && !o.ownerType)) return false;
+    }
+    if (search && !`${o.model} ${o.serial} ${o.issue} ${o.contact} ${o.refno||''}`.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  renderTable(filtered);
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('orders-tbody');
+  if (!list.length) { tbody.innerHTML = `<tr><td colspan="11"><div class="empty">沒有符合的維修單</div></td></tr>`; return; }
+  tbody.innerHTML = list.map(o => {
+    const days = daysSince(o.date);
+    const oq = isOverdueQuote(o), or_ = isOverdueRepair(o);
+    const rowCls = oq ? 'row-overdue-quote' : or_ ? 'row-overdue-repair' : '';
+    let daysHtml = '';
+    if (oq) daysHtml = `<span class="overdue-chip overdue-chip-amber">⏰ ${days}天</span>`;
+    else if (or_) daysHtml = `<span class="overdue-chip">🔧 ${days}天</span>`;
+    else if (isActive(o)) daysHtml = `<span style="color:var(--text3);font-size:12px">${days}天</span>`;
+    else daysHtml = `<span style="color:var(--text3);font-size:12px">—</span>`;
+    const profit = calcProfit(o);
+    const isWarranty = o.warranty || o.ownerType === '保固免費';
+    const chargeHtml = isWarranty
+      ? `<span class="badge b-ship" style="font-size:11px">保固 $0</span>`
+      : (o.charge!==null ? `<span style="font-weight:600;color:var(--green)">${fmtM(o.charge)}</span>` : `<span class="hidden-cost">—</span>`);
+    return `<tr class="${rowCls}" onclick="openDetail('${o.id}')">
+      <td style="color:var(--text3);white-space:nowrap">${o.date.slice(5)}</td>
+      <td class="bold">${o.model}</td>
+      <td class="mono">${o.serial}</td>
+      <td class="mono" style="color:var(--text2)">${o.refno||'—'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)">${o.issue}</td>
+      <td>${ownerHtml(o)}</td>
+      <td>${shopHtml(o.shop)}</td>
+      <td>${progressHtml(o.status)}</td>
+      <td>${daysHtml}</td>
+      <td>${chargeHtml}</td>
+      <td class="hidden-cost">${fmtM(o.cost)}</td>
+      <td class="${profit.cls}">${profit.display}</td>
+      <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm" onclick="openDetail('${o.id}')">詳情</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Detail Progress Visual ────────────────────────────────
+function progressDetailHtml(status) {
+  if (status === '取消') return `<div class="progress-detail"><div class="pd-title">進度</div><div>${badgeHtml('取消')}</div></div>`;
+  const idx = STATUS_MAP[status] ?? 0;
+  const dots = STEPS.map((s, i) => {
+    const isDone = i < idx, isCurr = i === idx;
+    return `<div class="pd-step">
+      ${i < STEPS.length-1 ? `<div class="${i < idx ? 'pd-line done' : 'pd-line'}"></div>` : ''}
+      <div class="pd-dot ${isDone?'done':isCurr?'current':''}">${isDone?'✓':i+1}</div>
+      <div class="pd-label ${isDone?'done':isCurr?'current':''}">${s}</div>
+    </div>`;
+  }).join('');
+  return `<div class="progress-detail"><div class="pd-title">維修進度</div><div class="pd-steps">${dots}</div></div>`;
+}
+
+// ── Detail Modal ──────────────────────────────────────────
+function openDetail(id) {
+  viewingId = id;
+  const o = orders.find(x => x.id === id);
+  document.getElementById('detail-title').textContent = `${o.model}`;
+  const isWarranty = o.warranty || o.ownerType === '保固免費';
+  const profit = calcProfit(o);
+  const chargeDisplay = isWarranty ? '$0（保固內）' : fmtM(o.charge);
+  const oq = isOverdueQuote(o), or_ = isOverdueRepair(o);
+  const alertHtml = oq ? `<div class="alert alert-quote" style="margin-bottom:12px"><span class="alert-icon">⏰</span><span>送件已 ${daysSince(o.date)} 天，超過設定上限仍未報價</span></div>` :
+    or_ ? `<div class="alert alert-repair" style="margin-bottom:12px"><span class="alert-icon">🔧</span><span>維修中已 ${daysSince(o.date)} 天，超過設定上限</span></div>` : '';
+  document.getElementById('detail-body').innerHTML = `
+    ${alertHtml}
+    ${progressDetailHtml(o.status)}
+    <div class="detail-row"><span class="detail-label">機身碼</span><span class="detail-value mono">${o.serial}</span></div>
+    <div class="detail-row"><span class="detail-label">手寫單號</span><span class="detail-value mono" style="color:var(--text2)">${o.refno||'—'}</span></div>
+    <div class="detail-row"><span class="detail-label">送修日期</span><span class="detail-value">${o.date}</span></div>
+    <div class="detail-row"><span class="detail-label">故障原因</span><span class="detail-value">${o.issue}</span></div>
+    <div class="detail-row"><span class="detail-label">配件</span><span class="detail-value">${o.parts}</span></div>
+    <div class="detail-row"><span class="detail-label">所有人</span><span class="detail-value">${ownerHtml(o)}</span></div>
+    <div class="detail-row"><span class="detail-label">維修店</span><span class="detail-value">${shopHtml(o.shop)}</span></div>
+    <div class="detail-row"><span class="detail-label">客人聯絡 🔒</span><span class="detail-value" style="color:var(--text2)">${o.contact||'—'}</span></div>
+    <div class="detail-row"><span class="detail-label">備註</span><span class="detail-value">${o.note||'—'}</span></div>
+    <div class="detail-row"><span class="detail-label">收費</span><span class="detail-value" style="color:var(--green);font-weight:600">${chargeDisplay}</span></div>
+    <div class="detail-row"><span class="detail-label">維修成本 🔒</span><span class="detail-value" style="color:var(--text2)">${fmtM(o.cost)}</span></div>
+    <div class="detail-row"><span class="detail-label">利潤 🔒</span><span class="detail-value ${profit.cls}">${profit.display}</span></div>
+    <div class="timeline">
+      <div class="tl-title">變更紀錄</div>
+      ${[...(o.timeline||[])].reverse().map((t,i)=>`<div class="tl-item"><div class="tl-dot ${i>0?'old':''}"></div><span class="tl-time">${t.time}</span><span class="tl-text">${t.text}</span></div>`).join('')}
+    </div>`;
+  openModal('modal-detail');
+}
+
+function editOrder() {
+  const o = orders.find(x => x.id === viewingId);
+  editingId = viewingId;
+  closeModal('modal-detail');
+  document.getElementById('modal-add-title').textContent = '編輯維修單';
+  document.getElementById('f-model').value = o.model;
+  document.getElementById('f-serial').value = o.serial;
+  document.getElementById('f-issue').value = o.issue;
+  document.getElementById('f-parts').value = o.parts;
+  document.getElementById('f-refno').value = o.refno || '';
+  // ownerType
+  let ot = o.ownerType || '';
+  if (!ot) ot = o.owner === '我們的' ? '我們的' : '客人的';
+  document.getElementById('f-ownerType').value = ot;
+  document.getElementById('f-shop').value = o.shop;
+  document.getElementById('f-status').value = o.status;
+  document.getElementById('f-charge').value = (o.warranty || o.ownerType === '保固免費') ? '' : (o.charge ?? '');
+  document.getElementById('f-cost').value = o.cost ?? '';
+  document.getElementById('f-contact-basic').value = o.contact || '';
+  document.getElementById('f-note').value = o.note || '';
+  updateOwnerUI();
+  updateProfit();
+  openModal('modal-add');
+}
+
+function deleteOrder() {
+  if (!confirm('確定要刪除這筆維修單？')) return;
+  deleteFromSupabase(viewingId);
+  orders = orders.filter(o => o.id !== viewingId);
+  save(); closeModal('modal-detail'); updateStats(); filterOrders();
+}
+
+// ── Add/Edit ──────────────────────────────────────────────
+function updateOwnerUI() {
+  const t = document.getElementById('f-ownerType').value;
+  const isWarranty = t === '保固免費';
+  const isProxy = t === '代送修';
+  document.getElementById('warranty-note').style.display = isWarranty ? '' : 'none';
+  document.getElementById('contact-field').style.display = (isProxy || t === '客人的') ? '' : 'none';
+  if (isWarranty) { document.getElementById('f-charge').value = '0'; updateProfit(); }
+}
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-add-title').textContent = '新增維修單';
+  ['f-model','f-serial','f-issue','f-note','f-refno','f-charge','f-cost'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('f-contact-basic').value = '';
+  document.getElementById('f-ownerType').value = '我們的';
+  document.getElementById('f-parts').value = '沒配件';
+  document.getElementById('f-shop').value = '明豐';
+  document.getElementById('f-status').value = '送件';
+  updateOwnerUI();
+  updateProfit();
+  openModal('modal-add');
+}
+
+function updateProfit() {
+  const ownerType = document.getElementById('f-ownerType').value;
+  const isWarranty = ownerType === '保固免費';
+  const charge = isWarranty ? 0 : (parseFloat(document.getElementById('f-charge').value)||null);
+  const cost = parseFloat(document.getElementById('f-cost').value)||null;
+  const el = document.getElementById('profit-preview');
+  if (isWarranty) { el.textContent=`−${fmtM(cost)} (保固成本)`; el.style.color='var(--red)'; }
+  else if (charge!==null&&cost!==null) {
+    const p=charge-cost; el.textContent=(p>=0?'+':'')+fmtM(Math.abs(p)); el.style.color=p>=0?'var(--green)':'var(--red)';
+  } else { el.textContent='—'; el.style.color='var(--text3)'; }
+}
+
+async function saveOrder() {
+  const ownerType = document.getElementById('f-ownerType').value;
+  const isWarranty = ownerType === '保固免費';
+  const owner = (ownerType === '我們的' || ownerType === '保固免費') ? '我們的' : '客人的';
+  const order = {
+    id: editingId || Date.now().toString(),
+    date: editingId ? orders.find(o=>o.id===editingId).date : new Date().toISOString().slice(0,10),
+    model: document.getElementById('f-model').value.trim(),
+    serial: document.getElementById('f-serial').value.trim(),
+    issue: document.getElementById('f-issue').value.trim(),
+    parts: document.getElementById('f-parts').value,
+    owner,
+    ownerType: (ownerType === '我們的' || ownerType === '客人的') ? '' : ownerType,
+    shop: document.getElementById('f-shop').value,
+    status: document.getElementById('f-status').value,
+    refno: document.getElementById('f-refno').value.trim(),
+    charge: isWarranty ? 0 : (document.getElementById('f-charge').value!==''?parseFloat(document.getElementById('f-charge').value):null),
+    cost: document.getElementById('f-cost').value!==''?parseFloat(document.getElementById('f-cost').value):null,
+    warranty: isWarranty,
+    contact: document.getElementById('f-contact-basic').value.trim(),
+    note: document.getElementById('f-note').value.trim(),
+    timeline: []
+  };
+  if (!order.model||!order.serial) { alert('請填寫型號和機身碼'); return; }
+  const now = nowStr();
+  if (editingId) {
+    const old = orders.find(o=>o.id===editingId);
+    order.timeline = [...(old.timeline||[])];
+    order.timeline.push({time:now, text: old.status!==order.status ? `狀態更新：${order.status}` : '資料更新'});
+    orders = orders.map(o=>o.id===editingId?order:o);
+  } else {
+    order.timeline = [{time:now, text:'新增維修單'}];
+    orders.unshift(order);
+  }
+  save();
+  await pushToSupabase(order);
+  closeModal('modal-add'); updateStats(); filterOrders();
+}
+
+
+// ── Report ────────────────────────────────────────────────
+function changeMonth(d) {
+  reportMonth.m+=d;
+  if(reportMonth.m>12){reportMonth.m=1;reportMonth.y++;}
+  if(reportMonth.m<1){reportMonth.m=12;reportMonth.y--;}
+  renderReport();
+}
+function renderReport() {
+  document.getElementById('month-lbl').textContent=`${reportMonth.y}/${String(reportMonth.m).padStart(2,'0')}`;
+  const mo = orders.filter(o=>{ const d=new Date(o.date); return d.getFullYear()===reportMonth.y&&d.getMonth()+1===reportMonth.m; });
+  let totalCharge=0,totalCost=0,warrantyCost=0;
+  mo.forEach(o=>{ const isW = o.warranty||o.ownerType==='保固免費'; if(isW){warrantyCost+=o.cost||0;totalCost+=o.cost||0;}else{totalCharge+=o.charge||0;totalCost+=o.cost||0;}});
+  document.getElementById('r-income').textContent=fmtM(totalCharge);
+  document.getElementById('r-cost').textContent=fmtM(totalCost);
+  document.getElementById('r-profit').textContent=fmtM(totalCharge-totalCost);
+  document.getElementById('r-warranty').textContent=fmtM(warrantyCost);
+  const SHOPS=['明豐','米奇','原廠'];
+  document.getElementById('shop-report').innerHTML=SHOPS.map(shop=>{
+    const items=mo.filter(o=>o.shop===shop);
+    let income=0,cost=0;
+    items.forEach(o=>{const isW=o.warranty||o.ownerType==='保固免費';if(!isW)income+=o.charge||0;cost+=o.cost||0;});
+    const profit=income-cost;
+    const margin=income>0?Math.round(profit/income*100):0;
+    const mc=margin>40?'var(--green)':margin>20?'var(--amber)':'var(--red)';
+    return `<div class="shop-card">
+      <div>${shopHtml(shop)}</div>
+      <div class="shop-cnt">${items.length} 件</div>
+      <div class="shop-nums">
+        <span><span class="num-lbl">收費</span><span class="num-in">${fmtM(income)}</span></span>
+        <span><span class="num-lbl">成本</span><span class="num-out">${fmtM(cost)}</span></span>
+        <span><span class="num-lbl">利潤</span><span class="num-profit">${profit>=0?'+':''}${fmtM(Math.abs(profit))}</span></span>
+        <span><span class="num-lbl">利潤率</span><span style="font-weight:700;color:${mc}">${margin}%</span></span>
+      </div>
+    </div>`;
+  }).join('');
+  const maxI=Math.max(1,...SHOPS.map(s=>mo.filter(o=>o.shop===s&&!o.warranty).reduce((a,o)=>a+(o.charge||0),0)));
+  document.getElementById('margin-chart').innerHTML=SHOPS.map((shop,i)=>{
+    const items=mo.filter(o=>o.shop===shop);
+    let income=0; items.forEach(o=>{const isW=o.warranty||o.ownerType==='保固免費';if(!isW)income+=o.charge||0;});
+    const pct=Math.round(income/maxI*88);
+    const cls=['bf-blue','bf-purple','bf-amber'][i];
+    return `<div class="bar-row"><div class="bar-lbl">${shop}</div><div class="bar-track"><div class="bar-fill ${cls}" style="width:${pct||4}%">${fmtM(income)}</div></div></div>`;
+  }).join('');
+  const overdueItems=orders.filter(o=>isOverdueQuote(o)||isOverdueRepair(o));
+  const otbody=document.getElementById('overdue-tbody');
+  if(!overdueItems.length){otbody.innerHTML=`<tr><td colspan="6"><div class="empty">目前沒有逾時的維修單 ✓</div></td></tr>`;return;}
+  otbody.innerHTML=overdueItems.map(o=>{
+    const oq=isOverdueQuote(o);
+    return `<tr onclick="openDetail('${o.id}')" style="cursor:pointer">
+      <td class="bold">${o.model}</td><td class="mono">${o.serial}</td><td>${o.date}</td>
+      <td>${shopHtml(o.shop)}</td>
+      <td>${oq?`<span class="overdue-chip overdue-chip-amber">⏰ ${daysSince(o.date)}天</span>`:`<span class="overdue-chip">🔧 ${daysSince(o.date)}天</span>`}</td>
+      <td>${badgeHtml(o.status)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function saveQuoteSettings() {
+  SHOP_NAME = document.getElementById('s-shop-name').value.trim() || '二手相機店';
+  QUOTE_DAYS = parseInt(document.getElementById('s-quote-days').value) || 7;
+  WARRANTY_TEXT = document.getElementById('s-warranty-text').value.trim() || WARRANTY_TEXT;
+  localStorage.setItem('shop_name', SHOP_NAME);
+  localStorage.setItem('quote_days', QUOTE_DAYS);
+  localStorage.setItem('warranty_text', WARRANTY_TEXT);
+  alert(`已儲存：${SHOP_NAME}，報價有效 ${QUOTE_DAYS} 天`);
+}
+
+// ── Nav ───────────────────────────────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent={orders:'維修單管理',report:'利潤報表',settings:'設定'}[name];
+  document.getElementById('global-search').style.display=name==='orders'?'':'none';
+  if(name==='report')renderReport();
+  if(name==='settings'){
+    document.getElementById('s-url').value=SUPABASE_URL;
+    document.getElementById('s-key').value=SUPABASE_KEY;
+    document.getElementById('s-alert-quote').value=ALERT_QUOTE_DAYS;
+    document.getElementById('s-alert-repair').value=ALERT_REPAIR_DAYS;
+    document.getElementById('s-shop-name').value=SHOP_NAME;
+    document.getElementById('s-quote-days').value=QUOTE_DAYS;
+    document.getElementById('s-warranty-text').value=WARRANTY_TEXT;
+  }
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
+
+// ── Quote ─────────────────────────────────────────────────
+let SHOP_NAME = localStorage.getItem('shop_name') || '二手相機店';
+let QUOTE_DAYS = parseInt(localStorage.getItem('quote_days') || '7');
+let WARRANTY_TEXT = localStorage.getItem('warranty_text') || '本店相機享有 6 個月保固，保固期間內因非人為因素造成之故障，免費送修。';
+
+function openQuote() {
+  const o = orders.find(x => x.id === viewingId);
+  if (!o) return;
+  const isWarranty = o.warranty || o.ownerType === '保固免費';
+  const today = new Date();
+  const expire = new Date(today); expire.setDate(expire.getDate() + QUOTE_DAYS);
+  const fmt = d => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+  const chargeAmt = isWarranty ? '$0（保固免費）' : (o.charge !== null ? fmtM(o.charge) : '待確認');
+  const amtColor = isWarranty ? '#0d9488' : '#15803d';
+  const amtBoxCls = isWarranty ? 'background:linear-gradient(135deg,#f0fdfa,#ccfbf1);border:1.5px solid #99f6e4' : 'background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #bbf7d0';
+
+  const warrantySection = `
+    <div class="qc-warranty">
+      <span class="qc-warranty-icon">🛡</span><strong>保固說明</strong><br>
+      ${WARRANTY_TEXT}
+    </div>`;
+
+  document.getElementById('quote-card').innerHTML = `
+    <div class="qc-header">
+      <div class="qc-shop">${SHOP_NAME}</div>
+      <div class="qc-title">維修報價單</div>
+      <div class="qc-subtitle">Repair Quotation</div>
+      <div class="qc-date-row">
+        <div class="qc-refno">單號：${o.refno || '—'}</div>
+        <div class="qc-validity">報價日期：${fmt(today)}</div>
+      </div>
+    </div>
+
+    <div class="qc-body">
+      <div class="qc-section">
+        <div class="qc-section-label">送修相機</div>
+        <div class="qc-row"><span class="qc-lbl">型號</span><span class="qc-val">${o.model}</span></div>
+        <div class="qc-row"><span class="qc-lbl">機身碼</span><span class="qc-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${o.serial}</span></div>
+        <div class="qc-row"><span class="qc-lbl">送修日期</span><span class="qc-val">${o.date}</span></div>
+      </div>
+
+      <div class="qc-section">
+        <div class="qc-section-label">故障說明</div>
+        <div style="font-size:13px;color:#1a1a18;line-height:1.7;padding:8px 12px;background:#fafaf8;border-radius:8px;border:1px solid #f2f2ef">
+          ${o.issue || '—'}
+        </div>
+      </div>
+
+      <div class="qc-amount-box" style="${amtBoxCls}">
+        <div>
+          <div class="qc-amount-lbl" style="color:${amtColor}">維修費用</div>
+          ${isWarranty ? `<div style="font-size:11px;color:#0d9488;margin-top:2px">保固期間內免費服務</div>` : ''}
+        </div>
+        <div class="qc-amount-val" style="color:${amtColor}">${chargeAmt}</div>
+      </div>
+
+      ${warrantySection}
+
+      <div class="qc-expire">
+        ⏰ 本報價單有效期限至 <strong>${fmt(expire)}</strong>（${QUOTE_DAYS} 天內有效）
+      </div>
+    </div>
+
+    <div class="qc-footer">
+      <div class="qc-footer-brand">📷 ${SHOP_NAME}</div>
+      <div class="qc-footer-note">如有疑問請聯繫店家</div>
+    </div>
+  `;
+  document.getElementById('quote-overlay').classList.add('open');
+}
+
+function closeQuote() {
+  document.getElementById('quote-overlay').classList.remove('open');
+}
+
+function printQuote() {
+  const card = document.getElementById('quote-card').outerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>報價單</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{background:#f0f0ee;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;font-family:'Noto Sans TC',sans-serif}
+      .quote-card{background:#fff;width:420px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+      .qc-header{background:linear-gradient(135deg,#1a1a18 0%,#3a3a36 100%);color:#fff;padding:24px 24px 20px}
+      .qc-shop{font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.6;margin-bottom:6px}
+      .qc-title{font-size:20px;font-weight:700;margin-bottom:4px}
+      .qc-subtitle{font-size:12px;opacity:.55}
+      .qc-date-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px}
+      .qc-refno{font-size:11px;opacity:.5;font-family:'JetBrains Mono',monospace}
+      .qc-validity{font-size:11px;opacity:.55;text-align:right}
+      .qc-body{padding:20px 24px}
+      .qc-section{margin-bottom:16px}
+      .qc-section-label{font-size:10px;font-weight:700;color:#a8a8a0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+      .qc-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f2f2ef;font-size:13px;gap:12px}
+      .qc-row:last-child{border-bottom:none}
+      .qc-lbl{color:#6b6b65;flex-shrink:0;min-width:72px;font-size:12px}
+      .qc-val{color:#1a1a18;text-align:right;font-weight:500}
+      .qc-amount-box{border-radius:12px;padding:16px 20px;margin:16px 0;display:flex;justify-content:space-between;align-items:center}
+      .qc-amount-lbl{font-size:12px;font-weight:600}
+      .qc-amount-val{font-size:28px;font-weight:800;letter-spacing:-.02em}
+      .qc-warranty{background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:12px 16px;margin-top:4px;font-size:12px;color:#0d9488;line-height:1.6}
+      .qc-warranty-icon{font-size:15px;margin-right:6px}
+      .qc-expire{text-align:center;font-size:11px;color:#a8a8a0;padding:10px 0 4px;border-top:1px dashed #e8e8e3;margin-top:8px}
+      .qc-footer{background:#fafaf8;border-top:1px solid #e8e8e3;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+      .qc-footer-brand{font-size:12px;color:#a8a8a0}
+      .qc-footer-note{font-size:11px;color:#c4c4bb;text-align:right}
+      @media print{body{background:white;padding:0}@page{margin:10mm}}
+    </style>
+  </head><body>${card}</body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
+}
+
+
+(async () => {
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    const ok = await loadFromSupabase();
+    if (ok) { supabaseConnected=true; document.getElementById('sync-status').textContent='☁️ 雲端同步中'; }
+  }
+  updateStats();
+  filterOrders();
+})();
+</script>
+</body>
+</html>
