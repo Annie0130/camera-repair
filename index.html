@@ -830,6 +830,7 @@ function isOverdueQuote(o) { return o.status === '送件' && daysSince(o.date) >
 function isOverdueRepair(o) { return o.status === '報修' && daysSince(o.date) >= ALERT_REPAIR_DAYS; }
 function isActive(o) { return ['送件','報修'].includes(o.status); }
 function fmtM(n) { if (n===null||n===undefined||n==='') return '—'; return '$'+Number(n).toLocaleString(); }
+function fmtDate(d) { if (!d) return '—'; const dt = new Date(d); if (isNaN(dt)) return d.slice(0,10); return dt.getFullYear() + '/' + String(dt.getMonth()+1).padStart(2,'0') + '/' + String(dt.getDate()).padStart(2,'0'); }
 function calcProfit(o) {
   const isWarranty = o.warranty || o.ownerType === '保固免費';
   if (isWarranty) return { val:-(o.cost||0), display:`−${fmtM(o.cost)}`, cls:'profit-neg' };
@@ -947,7 +948,7 @@ function renderTable(list) {
       ? `<span class="badge b-ship" style="font-size:11px">保固 $0</span>`
       : (o.charge!==null ? `<span style="font-weight:600;color:var(--green)">${fmtM(o.charge)}</span>` : `<span class="hidden-cost">—</span>`);
     return `<tr class="${rowCls}" onclick="openDetail('${o.id}')">
-      <td style="color:var(--text3);white-space:nowrap">${o.date.slice(5)}</td>
+      <td style="color:var(--text3);white-space:nowrap">${fmtDate(o.date)}</td>
       <td class="bold">${o.model}</td>
       <td class="mono">${o.serial}</td>
       <td class="mono" style="color:var(--text2)">${o.refno||'—'}</td>
@@ -995,7 +996,7 @@ function openDetail(id) {
     ${progressDetailHtml(o.status)}
     <div class="detail-row"><span class="detail-label">機身碼</span><span class="detail-value mono">${o.serial}</span></div>
     <div class="detail-row"><span class="detail-label">手寫單號</span><span class="detail-value mono" style="color:var(--text2)">${o.refno||'—'}</span></div>
-    <div class="detail-row"><span class="detail-label">送修日期</span><span class="detail-value">${o.date}</span></div>
+    <div class="detail-row"><span class="detail-label">送修日期</span><span class="detail-value">${fmtDate(o.date)}</span></div>
     <div class="detail-row"><span class="detail-label">故障原因</span><span class="detail-value">${o.issue}</span></div>
     <div class="detail-row"><span class="detail-label">配件</span><span class="detail-value">${o.parts}</span></div>
     <div class="detail-row"><span class="detail-label">所有人</span><span class="detail-value">${ownerHtml(o)}</span></div>
@@ -1211,7 +1212,7 @@ function renderReport() {
             <tr onclick="openDetail('${o.id}')" style="cursor:pointer">
               <td class="bold">${o.model}</td>
               <td class="mono">${o.serial}</td>
-              <td>${o.date}</td>
+              <td>${fmtDate(o.date)}</td>
               <td>${shopHtml(o.shop)}</td>
               <td style="color:var(--red);font-weight:600">${o.cost ? `−${fmtM(o.cost)}` : '—'}</td>
             </tr>`).join('')}
@@ -1232,7 +1233,7 @@ function renderReport() {
             <tr onclick="openDetail('${o.id}')" style="cursor:pointer">
               <td class="bold">${o.model}</td>
               <td class="mono">${o.serial}</td>
-              <td>${o.date}</td>
+              <td>${fmtDate(o.date)}</td>
               <td style="color:${daysSince(o.date)>14?'var(--red)':'var(--text3)'};">${daysSince(o.date)}天</td>
               <td>${shopHtml(o.shop)}</td>
               <td style="font-weight:600;color:var(--purple)">${o.purchaseCost ? fmtM(o.purchaseCost) : '未填'}</td>
@@ -1287,7 +1288,7 @@ function renderReport() {
   otbody.innerHTML=overdueItems.map(o=>{
     const oq=isOverdueQuote(o);
     return `<tr onclick="openDetail('${o.id}')" style="cursor:pointer">
-      <td class="bold">${o.model}</td><td class="mono">${o.serial}</td><td>${o.date}</td>
+      <td class="bold">${o.model}</td><td class="mono">${o.serial}</td><td>${fmtDate(o.date)}</td>
       <td>${shopHtml(o.shop)}</td>
       <td>${oq?`<span class="overdue-chip overdue-chip-amber">⏰ ${daysSince(o.date)}天</span>`:`<span class="overdue-chip">🔧 ${daysSince(o.date)}天</span>`}</td>
       <td>${badgeHtml(o.status)}</td>
@@ -1341,12 +1342,7 @@ function openQuote() {
   const fmt = d => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
 
   // 日期格式：只顯示年月日
-  const fmtOrderDate = (dateStr) => {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
-    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-  };
+  const fmtOrderDate = fmtDate;
 
   const chargeAmt = isWarranty ? '$0（保固免費）' : (o.charge !== null ? fmtM(o.charge) : '待確認');
 
