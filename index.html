@@ -525,16 +525,19 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
         <div class="month-lbl" id="month-lbl">2026/03</div>
         <button class="month-btn" onclick="changeMonth(1)">›</button>
       </div>
-      <div class="stats-grid">
+      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
         <div class="stat-card"><div class="stat-label">總收費</div><div class="stat-value sv-blue" id="r-income">—</div></div>
         <div class="stat-card"><div class="stat-label">維修成本</div><div class="stat-value sv-red" id="r-cost">—</div></div>
-        <div class="stat-card"><div class="stat-label">毛利潤</div><div class="stat-value sv-green" id="r-profit">—</div></div>
-        <div class="stat-card"><div class="stat-label">保固成本</div><div class="stat-value sv-purple" id="r-warranty">—</div><div class="stat-sub">客人不收費</div></div>
+        <div class="stat-card"><div class="stat-label">保固減項</div><div class="stat-value sv-red" id="r-warranty">—</div><div class="stat-sub">客人保固免費</div></div>
+        <div class="stat-card"><div class="stat-label">毛利潤</div><div class="stat-value sv-green" id="r-profit">—</div><div class="stat-sub">已扣除保固成本</div></div>
+        <div class="stat-card"><div class="stat-label">在修庫存值</div><div class="stat-value sv-purple" id="r-inventory">—</div><div class="stat-sub">我們的相機收購成本</div></div>
       </div>
       <div class="report-section">
         <div class="report-title">各維修店分析</div>
         <div id="shop-report"></div>
       </div>
+      <div id="warranty-detail-section"></div>
+      <div id="inventory-detail-section"></div>
       <div class="report-section">
         <div class="report-title">收費金額對比</div>
         <div class="bar-chart" id="margin-chart"></div>
@@ -664,6 +667,15 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
       <div class="fgrid">
         <div class="field"><label>向客人收費 $</label><input id="f-charge" type="number" placeholder="1200" oninput="updateProfit()"/></div>
         <div class="field"><label>付給維修店 $ 🔒</label><input id="f-cost" type="number" placeholder="800" oninput="updateProfit()"/></div>
+      </div>
+      <div class="fgrid" style="margin-top:10px" id="purchase-cost-row">
+        <div class="field">
+          <label>收購成本 $ 🔒（我們的相機才需填）</label>
+          <input id="f-purchase-cost" type="number" placeholder="例如 3000"/>
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end">
+          <div style="font-size:12px;color:var(--text3);padding-bottom:10px;line-height:1.6">填入後可在報表看到<br>目前在修庫存總值</div>
+        </div>
       </div>
       <div class="profit-preview"><span class="label">預估利潤</span><span class="val" id="profit-preview">—</span></div>
       <div id="warranty-note" style="display:none;margin-top:8px;font-size:12px;padding:8px 10px;background:var(--teal-bg);border:1px solid var(--teal-bd);border-radius:var(--radius-sm);color:var(--teal)">🛡 保固免費：收費自動為 $0，只需填入維修成本</div>
@@ -994,6 +1006,7 @@ function openDetail(id) {
     <div class="detail-row"><span class="detail-label">備註</span><span class="detail-value">${o.note||'—'}</span></div>
     <div class="detail-row"><span class="detail-label">收費</span><span class="detail-value" style="color:var(--green);font-weight:600">${chargeDisplay}</span></div>
     <div class="detail-row"><span class="detail-label">維修成本 🔒</span><span class="detail-value" style="color:var(--text2)">${fmtM(o.cost)}</span></div>
+    ${o.owner==='我們的'?`<div class="detail-row"><span class="detail-label">收購成本 🔒</span><span class="detail-value" style="color:var(--purple);font-weight:600">${o.purchaseCost?fmtM(o.purchaseCost):'未填'}</span></div>`:''}
     <div class="detail-row"><span class="detail-label">利潤 🔒</span><span class="detail-value ${profit.cls}">${profit.display}</span></div>
     ${(o.photos && o.photos.length > 0) ? `
     <div style="margin-top:12px">
@@ -1027,6 +1040,7 @@ function editOrder() {
   document.getElementById('f-status').value = o.status;
   document.getElementById('f-charge').value = (o.warranty || o.ownerType === '保固免費') ? '' : (o.charge ?? '');
   document.getElementById('f-cost').value = o.cost ?? '';
+  document.getElementById('f-purchase-cost').value = o.purchaseCost ?? '';
   document.getElementById('f-contact-basic').value = o.contact || '';
   document.getElementById('f-note').value = o.note || '';
   currentPhotos = o.photos ? [...o.photos] : [];
@@ -1086,7 +1100,7 @@ function updateOwnerUI() {
 function openAddModal() {
   editingId = null;
   document.getElementById('modal-add-title').textContent = '新增維修單';
-  ['f-model','f-serial','f-issue','f-note','f-refno','f-charge','f-cost'].forEach(id => document.getElementById(id).value='');
+  ['f-model','f-serial','f-issue','f-note','f-refno','f-charge','f-cost','f-purchase-cost'].forEach(id => document.getElementById(id).value='');
   document.getElementById('f-contact-basic').value = '';
   currentPhotos = [];
   renderPhotoPreview();
@@ -1129,6 +1143,7 @@ async function saveOrder() {
     refno: document.getElementById('f-refno').value.trim(),
     charge: isWarranty ? 0 : (document.getElementById('f-charge').value!==''?parseFloat(document.getElementById('f-charge').value):null),
     cost: document.getElementById('f-cost').value!==''?parseFloat(document.getElementById('f-cost').value):null,
+    purchaseCost: document.getElementById('f-purchase-cost').value!==''?parseFloat(document.getElementById('f-purchase-cost').value):null,
     warranty: isWarranty,
     contact: document.getElementById('f-contact-basic').value.trim(),
     note: document.getElementById('f-note').value.trim(),
@@ -1162,18 +1177,88 @@ function changeMonth(d) {
 function renderReport() {
   document.getElementById('month-lbl').textContent=`${reportMonth.y}/${String(reportMonth.m).padStart(2,'0')}`;
   const mo = orders.filter(o=>{ const d=new Date(o.date); return d.getFullYear()===reportMonth.y&&d.getMonth()+1===reportMonth.m; });
-  let totalCharge=0,totalCost=0,warrantyCost=0;
-  mo.forEach(o=>{ const isW = o.warranty||o.ownerType==='保固免費'; if(isW){warrantyCost+=o.cost||0;totalCost+=o.cost||0;}else{totalCharge+=o.charge||0;totalCost+=o.cost||0;}});
+
+  let totalCharge=0, totalRepairCost=0, warrantyCost=0;
+  mo.forEach(o=>{
+    const isW = o.warranty || o.ownerType==='保固免費';
+    if (isW) {
+      warrantyCost += o.cost||0; // 客人保固：成本列為減項
+    } else {
+      totalCharge += o.charge||0;
+      totalRepairCost += o.cost||0;
+    }
+  });
+  const totalProfit = totalCharge - totalRepairCost - warrantyCost;
+
+  // 在修庫存值（所有未完成的「我們的」相機收購成本合計）
+  const inventoryValue = orders
+    .filter(o => o.owner === '我們的' && isActive(o) && o.purchaseCost)
+    .reduce((a, o) => a + (o.purchaseCost||0), 0);
+
   document.getElementById('r-income').textContent=fmtM(totalCharge);
-  document.getElementById('r-cost').textContent=fmtM(totalCost);
-  document.getElementById('r-profit').textContent=fmtM(totalCharge-totalCost);
-  document.getElementById('r-warranty').textContent=fmtM(warrantyCost);
+  document.getElementById('r-cost').textContent=fmtM(totalRepairCost);
+  document.getElementById('r-warranty').textContent=warrantyCost > 0 ? `−${fmtM(warrantyCost)}` : '$0';
+  document.getElementById('r-profit').textContent=fmtM(totalProfit);
+  document.getElementById('r-inventory').textContent=inventoryValue > 0 ? fmtM(inventoryValue) : '$0';
+
+  // 保固減項明細
+  const warrantyOrders = mo.filter(o => o.warranty||o.ownerType==='保固免費');
+  const warrantyDetail = warrantyOrders.length > 0 ? `
+    <div class="report-section">
+      <div class="report-title">保固減項明細（本月 ${warrantyOrders.length} 件）</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>型號</th><th>機身碼</th><th>送修日</th><th>維修店</th><th>維修成本</th></tr></thead>
+          <tbody>${warrantyOrders.map(o=>`
+            <tr onclick="openDetail('${o.id}')" style="cursor:pointer">
+              <td class="bold">${o.model}</td>
+              <td class="mono">${o.serial}</td>
+              <td>${o.date}</td>
+              <td>${shopHtml(o.shop)}</td>
+              <td style="color:var(--red);font-weight:600">${o.cost ? `−${fmtM(o.cost)}` : '—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : '';
+
+  // 在修庫存明細
+  const inventoryOrders = orders.filter(o => o.owner==='我們的' && isActive(o));
+  const inventoryDetail = inventoryOrders.length > 0 ? `
+    <div class="report-section">
+      <div class="report-title">目前在修庫存（${inventoryOrders.length} 件，資金 ${fmtM(inventoryValue)} 暫時無法出售）</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>型號</th><th>機身碼</th><th>送修日</th><th>天數</th><th>維修店</th><th>收購成本</th><th>狀態</th></tr></thead>
+          <tbody>${inventoryOrders.map(o=>`
+            <tr onclick="openDetail('${o.id}')" style="cursor:pointer">
+              <td class="bold">${o.model}</td>
+              <td class="mono">${o.serial}</td>
+              <td>${o.date}</td>
+              <td style="color:${daysSince(o.date)>14?'var(--red)':'var(--text3)'};">${daysSince(o.date)}天</td>
+              <td>${shopHtml(o.shop)}</td>
+              <td style="font-weight:600;color:var(--purple)">${o.purchaseCost ? fmtM(o.purchaseCost) : '未填'}</td>
+              <td>${badgeHtml(o.status)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : '';
+
+  // 注入動態區塊
+  document.getElementById('warranty-detail-section').innerHTML = warrantyDetail;
+  document.getElementById('inventory-detail-section').innerHTML = inventoryDetail;
+
   const SHOPS=['明豐','米奇','原廠'];
   document.getElementById('shop-report').innerHTML=SHOPS.map(shop=>{
     const items=mo.filter(o=>o.shop===shop);
-    let income=0,cost=0;
-    items.forEach(o=>{const isW=o.warranty||o.ownerType==='保固免費';if(!isW)income+=o.charge||0;cost+=o.cost||0;});
-    const profit=income-cost;
+    let income=0,cost=0,wCost=0;
+    items.forEach(o=>{
+      const isW=o.warranty||o.ownerType==='保固免費';
+      if(isW) wCost+=o.cost||0;
+      else { income+=o.charge||0; cost+=o.cost||0; }
+    });
+    const profit=income-cost-wCost;
     const margin=income>0?Math.round(profit/income*100):0;
     const mc=margin>40?'var(--green)':margin>20?'var(--amber)':'var(--red)';
     return `<div class="shop-card">
@@ -1181,13 +1266,15 @@ function renderReport() {
       <div class="shop-cnt">${items.length} 件</div>
       <div class="shop-nums">
         <span><span class="num-lbl">收費</span><span class="num-in">${fmtM(income)}</span></span>
-        <span><span class="num-lbl">成本</span><span class="num-out">${fmtM(cost)}</span></span>
+        <span><span class="num-lbl">維修成本</span><span class="num-out">${fmtM(cost)}</span></span>
+        ${wCost>0?`<span><span class="num-lbl">保固減項</span><span style="color:var(--red);font-weight:700">−${fmtM(wCost)}</span></span>`:''}
         <span><span class="num-lbl">利潤</span><span class="num-profit">${profit>=0?'+':''}${fmtM(Math.abs(profit))}</span></span>
         <span><span class="num-lbl">利潤率</span><span style="font-weight:700;color:${mc}">${margin}%</span></span>
       </div>
     </div>`;
   }).join('');
-  const maxI=Math.max(1,...SHOPS.map(s=>mo.filter(o=>o.shop===s&&!o.warranty).reduce((a,o)=>a+(o.charge||0),0)));
+
+  const maxI=Math.max(1,...SHOPS.map(s=>mo.filter(o=>o.shop===s&&!(o.warranty||o.ownerType==='保固免費')).reduce((a,o)=>a+(o.charge||0),0)));
   document.getElementById('margin-chart').innerHTML=SHOPS.map((shop,i)=>{
     const items=mo.filter(o=>o.shop===shop);
     let income=0; items.forEach(o=>{const isW=o.warranty||o.ownerType==='保固免費';if(!isW)income+=o.charge||0;});
@@ -1195,6 +1282,7 @@ function renderReport() {
     const cls=['bf-blue','bf-purple','bf-amber'][i];
     return `<div class="bar-row"><div class="bar-lbl">${shop}</div><div class="bar-track"><div class="bar-fill ${cls}" style="width:${pct||4}%">${fmtM(income)}</div></div></div>`;
   }).join('');
+
   const overdueItems=orders.filter(o=>isOverdueQuote(o)||isOverdueRepair(o));
   const otbody=document.getElementById('overdue-tbody');
   if(!overdueItems.length){otbody.innerHTML=`<tr><td colspan="6"><div class="empty">目前沒有逾時的維修單 ✓</div></td></tr>`;return;}
