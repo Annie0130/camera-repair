@@ -542,23 +542,23 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
     <div id="page-settings" class="page">
       <div style="max-width:520px">
         <div class="setup-banner">
-          🌐 連接 Supabase 雲端後，所有員工可即時同步資料
+          📊 已連接 Google Sheets，資料即時同步
         </div>
         <div class="table-wrap" style="padding:24px">
           <div class="fsec">
-            <div class="fsec-title">Supabase 雲端設定</div>
-            <div class="fgrid" style="margin-bottom:12px">
-              <div class="field full"><label>Supabase Project URL</label><input id="s-url" type="text" placeholder="https://xxx.supabase.co" value=""/></div>
-              <div class="field full"><label>Supabase Anon Key</label><input id="s-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." value=""/></div>
+            <div class="fsec-title">Google Sheets 連線設定</div>
+            <div class="field full" style="margin-bottom:12px">
+              <label>Apps Script 網址</label>
+              <input id="s-gs-url" type="text" placeholder="https://script.google.com/macros/s/xxxxx/exec"/>
             </div>
-            <button class="btn btn-primary" onclick="saveSupabaseConfig()">儲存並連線</button>
-            <div id="supabase-status" style="margin-top:10px;font-size:13px;color:var(--text3)"></div>
+            <button class="btn btn-primary" onclick="saveGSConfig()">儲存並連線</button>
+            <div id="gs-status" style="margin-top:10px;font-size:13px;color:var(--text3)"></div>
           </div>
           <div class="fsec" style="margin-top:20px">
             <div class="fsec-title">逾時警示設定</div>
             <div class="fgrid">
               <div class="field">
-                <label>待報價超過幾天警示</label>
+                <label>送件超過幾天警示</label>
                 <input id="s-alert-quote" type="number" value="10" min="1" max="30"/>
               </div>
               <div class="field">
@@ -580,39 +580,10 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
             </div>
             <button class="btn btn-ghost" style="margin-top:10px" onclick="saveQuoteSettings()">儲存報價設定</button>
           </div>
-            <ol style="font-size:13px;color:var(--text2);line-height:2;padding-left:18px">
-              <li>前往 <strong>supabase.com</strong> 免費建立帳號</li>
-              <li>新增專案，複製 Project URL 和 Anon Key</li>
-              <li>在 SQL Editor 貼上下方建表語法執行</li>
-              <li>回到此頁面填入 URL 和 Key 後儲存</li>
-              <li>所有員工開啟同一個 HTML 檔案即可共用</li>
-            </ol>
-            <div style="margin-top:12px;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:pre-wrap;border:1px solid var(--border)">create table repair_orders (
-  id text primary key,
-  date text,
-  model text,
-  serial text,
-  issue text,
-  parts text,
-  owner text,
-  owner_type text default '',
-  shop text,
-  status text,
-  refno text default '',
-  charge numeric,
-  cost numeric,
-  warranty boolean default false,
-  contact text,
-  note text,
-  timeline jsonb default '[]'::jsonb,
-  created_at timestamptz default now()
-);
-alter table repair_orders enable row level security;
-create policy "open" on repair_orders for all using (true);</div>
-          </div>
         </div>
       </div>
     </div>
+
 
   </div>
 </main>
@@ -715,18 +686,17 @@ create policy "open" on repair_orders for all using (true);</div>
 
 <script>
 // ── Config ──────────────────────────────────────────────
-let ALERT_QUOTE_DAYS = parseInt(localStorage.getItem('alert_quote') || '10');
+let ALERT_QUOTE_DAYS  = parseInt(localStorage.getItem('alert_quote') || '10');
 let ALERT_REPAIR_DAYS = parseInt(localStorage.getItem('alert_repair') || '10');
-let SUPABASE_URL = localStorage.getItem('sb_url') || '';
-let SUPABASE_KEY = localStorage.getItem('sb_key') || '';
-let supabaseConnected = false;
+let GS_URL = localStorage.getItem('gs_url') || 'https://script.google.com/macros/s/AKfycbw1QbJIVwyQEOoGBU5RZboEBXbXm-bqmmH5E8F8HrrpJZoOWR4xcRSab7A7YxykE3A-/exec';
+let gsConnected = false;
 
 const STEPS = ['送件','報價','維修','完成'];
 const STATUS_MAP = { '送件':0, '報價':1, '維修':2, '完成':3, '取消':-1 };
 const STATUS_CLASS = {
   '送件':'b-quote','報價':'b-confirm','維修':'b-repair','完成':'b-done','取消':'b-cancel'
 };
-// Owner type helpers
+
 function ownerLabel(o) {
   if (o.ownerType === '保固免費') return '我們的（保固）';
   if (o.ownerType === '代送修') return '客人（代送修）';
@@ -743,88 +713,77 @@ function ownerHtml(o) {
 // ── Data ─────────────────────────────────────────────────
 let orders = JSON.parse(localStorage.getItem('repair_orders_v2') || '[]');
 let editingId = null, viewingId = null;
-let reportMonth = { y: 2026, m: 3 };
+let reportMonth = { y: new Date().getFullYear(), m: new Date().getMonth()+1 };
 
-if (orders.length === 0) {
-  const now = new Date();
-  const d = n => { const dt = new Date(now); dt.setDate(dt.getDate()-n); return dt.toISOString().slice(0,10); };
-  const ts = n => { const dt = new Date(now); dt.setDate(dt.getDate()-n); return dt.toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'-'); };
-  orders = [
-    {id:'1',date:d(4),model:'Canon G7X2',serial:'03973',issue:'閃燈bad',parts:'後架子',owner:'我們的',ownerType:'',shop:'明豐',status:'完成',refno:'A-0121',charge:1200,cost:800,warranty:false,contact:'',note:'',timeline:[{time:ts(4),text:'新增維修單'},{time:ts(1),text:'狀態更新：完成'}]},
-    {id:'2',date:d(13),model:'D-lux8',serial:'18192',issue:'入塵',parts:'後架子',owner:'客人的',ownerType:'代送修',shop:'原廠',status:'送件',refno:'A-0118',charge:null,cost:null,warranty:false,contact:'ig:蔡欣佑',note:'',timeline:[{time:ts(13),text:'新增維修單'}]},
-    {id:'3',date:d(5),model:'Canon M200+15-45',serial:'21997372',issue:'出現err60',parts:'沒配件',owner:'客人的',ownerType:'代送修',shop:'米奇',status:'報價',refno:'A-0119',charge:1800,cost:null,warranty:false,contact:'Line:何玉寶慶',note:'',timeline:[{time:ts(5),text:'新增維修單'},{time:ts(2),text:'狀態更新：報價'}]},
-    {id:'4',date:d(15),model:'EM10 三代+14-42',serial:'36988178',issue:'照片大量熱紅點',parts:'沒配件',owner:'客人的',ownerType:'代送修',shop:'米奇',status:'維修',refno:'A-0115',charge:null,cost:600,warranty:false,contact:'Line:Ann',note:'',timeline:[{time:ts(15),text:'新增維修單'},{time:ts(12),text:'狀態更新：維修'}]},
-    {id:'5',date:d(20),model:'Nikon Z 16-50',serial:'80248',issue:'不能對焦',parts:'沒配件',owner:'我們的',ownerType:'保固免費',shop:'米奇',status:'完成',refno:'A-0110',charge:0,cost:950,warranty:true,contact:'',note:'',timeline:[{time:ts(20),text:'新增維修單'},{time:ts(8),text:'狀態更新：完成（保固內）'}]},
-    {id:'6',date:d(3),model:'Canon 700D',serial:'51588838',issue:'螢幕排線壞掉',parts:'前架子',owner:'我們的',ownerType:'',shop:'明豐',status:'維修',refno:'A-0122',charge:null,cost:null,warranty:false,contact:'',note:'',timeline:[{time:ts(3),text:'新增維修單'}]},
-    {id:'7',date:d(11),model:'Fuji XS10',serial:'012826',issue:'閃燈會卡卡的',parts:'前架子',owner:'我們的',ownerType:'',shop:'米奇',status:'送件',refno:'A-0116',charge:null,cost:null,warranty:false,contact:'',note:'',timeline:[{time:ts(11),text:'新增維修單'}]},
-    {id:'8',date:d(25),model:'Sony RX100M4',serial:'93847',issue:'入塵、螢幕暗',parts:'沒配件',owner:'我們的',ownerType:'',shop:'米奇',status:'完成',refno:'A-0108',charge:2800,cost:1500,warranty:false,contact:'',note:'',timeline:[{time:ts(25),text:'新增維修單'},{time:ts(10),text:'狀態更新：完成'}]},
-  ];
-  save();
+// ── Google Sheets API ─────────────────────────────────────
+async function gsCall(body) {
+  if (!GS_URL) return null;
+  try {
+    const res = await fetch(GS_URL, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    const text = await res.text();
+    return JSON.parse(text);
+  } catch(e) {
+    console.error('GS error:', e);
+    return null;
+  }
 }
 
-// ── Supabase ─────────────────────────────────────────────
-async function sbFetch(path, opts={}) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...opts.headers },
-    ...opts
-  });
-  if (!res.ok) return null;
-  return res.json().catch(() => null);
-}
-
-async function loadFromSupabase() {
-  const data = await sbFetch('repair_orders?order=date.desc');
-  if (data && Array.isArray(data)) {
-    orders = data.map(r => ({ ...r, timeline: r.timeline || [] }));
-    save();
+async function loadFromGS() {
+  setStatus('📊 從 Google Sheets 載入中…');
+  const data = await gsCall({ action: 'getAll' });
+  if (data && data.orders) {
+    orders = data.orders;
+    localStorage.setItem('repair_orders_v2', JSON.stringify(orders));
+    gsConnected = true;
+    setStatus('✅ 已連線 Google Sheets');
+    document.getElementById('sync-status').textContent = '📊 Google Sheets 同步中';
     return true;
   }
+  setStatus('❌ 無法連線，使用本機資料');
   return false;
 }
 
-async function pushToSupabase(order) {
-  if (!supabaseConnected) return;
-  await sbFetch('repair_orders', {
-    method: 'POST',
-    headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify(order)
-  });
+async function pushToGS(order) {
+  await gsCall({ action: 'save', order });
 }
 
-async function deleteFromSupabase(id) {
-  if (!supabaseConnected) return;
-  await sbFetch(`repair_orders?id=eq.${id}`, { method: 'DELETE' });
+async function deleteFromGS(id) {
+  await gsCall({ action: 'delete', id });
 }
 
-async function saveSupabaseConfig() {
-  SUPABASE_URL = document.getElementById('s-url').value.trim().replace(/\/$/, '');
-  SUPABASE_KEY = document.getElementById('s-key').value.trim();
-  localStorage.setItem('sb_url', SUPABASE_URL);
-  localStorage.setItem('sb_key', SUPABASE_KEY);
-  const el = document.getElementById('supabase-status');
-  el.textContent = '連線中…';
-  const ok = await loadFromSupabase();
+function setStatus(msg) {
+  const el = document.getElementById('sync-status');
+  if (el) el.textContent = msg;
+}
+
+async function saveGSConfig() {
+  GS_URL = document.getElementById('s-gs-url').value.trim();
+  localStorage.setItem('gs_url', GS_URL);
+  const el = document.getElementById('gs-status');
+  el.textContent = '連線中…'; el.style.color = 'var(--text3)';
+  const ok = await loadFromGS();
   if (ok) {
-    supabaseConnected = true;
-    el.textContent = '✅ 連線成功！資料已同步';
+    el.textContent = '✅ 連線成功！已從 Google Sheets 載入資料';
     el.style.color = 'var(--green)';
-    document.getElementById('sync-status').textContent = '☁️ 雲端同步中';
     updateStats(); filterOrders();
   } else {
-    el.textContent = '❌ 連線失敗，請確認 URL 和 Key';
+    el.textContent = '❌ 連線失敗，請確認網址是否正確';
     el.style.color = 'var(--red)';
   }
 }
 
 function saveAlertSettings() {
-  ALERT_QUOTE_DAYS = parseInt(document.getElementById('s-alert-quote').value) || 10;
+  ALERT_QUOTE_DAYS  = parseInt(document.getElementById('s-alert-quote').value) || 10;
   ALERT_REPAIR_DAYS = parseInt(document.getElementById('s-alert-repair').value) || 10;
   localStorage.setItem('alert_quote', ALERT_QUOTE_DAYS);
   localStorage.setItem('alert_repair', ALERT_REPAIR_DAYS);
   updateStats(); filterOrders();
-  alert(`已儲存：待報價 ${ALERT_QUOTE_DAYS} 天、維修中 ${ALERT_REPAIR_DAYS} 天`);
+  alert(`已儲存：送件 ${ALERT_QUOTE_DAYS} 天、維修中 ${ALERT_REPAIR_DAYS} 天`);
 }
+
 
 // ── Utils ─────────────────────────────────────────────────
 function save() { localStorage.setItem('repair_orders_v2', JSON.stringify(orders)); }
@@ -1043,7 +1002,7 @@ function editOrder() {
 
 function deleteOrder() {
   if (!confirm('確定要刪除這筆維修單？')) return;
-  deleteFromSupabase(viewingId);
+  deleteFromGS(viewingId);
   orders = orders.filter(o => o.id !== viewingId);
   save(); closeModal('modal-detail'); updateStats(); filterOrders();
 }
@@ -1119,7 +1078,7 @@ async function saveOrder() {
     orders.unshift(order);
   }
   save();
-  await pushToSupabase(order);
+  await pushToGS(order);
   closeModal('modal-add'); updateStats(); filterOrders();
 }
 
@@ -1201,8 +1160,7 @@ function showPage(name, el) {
   document.getElementById('global-search').style.display=name==='orders'?'':'none';
   if(name==='report')renderReport();
   if(name==='settings'){
-    document.getElementById('s-url').value=SUPABASE_URL;
-    document.getElementById('s-key').value=SUPABASE_KEY;
+    document.getElementById('s-gs-url').value = GS_URL;
     document.getElementById('s-alert-quote').value=ALERT_QUOTE_DAYS;
     document.getElementById('s-alert-repair').value=ALERT_REPAIR_DAYS;
     document.getElementById('s-shop-name').value=SHOP_NAME;
@@ -1332,12 +1290,14 @@ function printQuote() {
 
 
 (async () => {
-  if (SUPABASE_URL && SUPABASE_KEY) {
-    const ok = await loadFromSupabase();
-    if (ok) { supabaseConnected=true; document.getElementById('sync-status').textContent='☁️ 雲端同步中'; }
-  }
+  // 先用 localStorage 快速顯示
   updateStats();
   filterOrders();
+  // 再從 Google Sheets 拉最新資料
+  if (GS_URL) {
+    const ok = await loadFromGS();
+    if (ok) { updateStats(); filterOrders(); }
+  }
 })();
 </script>
 </body>
