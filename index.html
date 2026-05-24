@@ -156,10 +156,14 @@ tbody td{padding:13px 12px;border-bottom:1px solid var(--border);vertical-align:
 tbody tr:last-child td{border-bottom:none}
 tbody tr{transition:background .1s;cursor:pointer}
 tbody tr:hover{background:var(--surface2)}
-tbody tr.row-overdue-quote{background:#fffbeb}
-tbody tr.row-overdue-quote:hover{background:#fef3c7}
+tbody tr.row-overdue-quote{background:#fff7ed}
+tbody tr.row-overdue-quote:hover{background:#ffedd5}
+tbody tr.row-overdue-quote td{border-bottom:1px solid #fed7aa}
 tbody tr.row-overdue-repair{background:#fef2f2}
 tbody tr.row-overdue-repair:hover{background:#fee2e2}
+tbody tr.row-overdue-repair td{border-bottom:1px solid #fecaca}
+tbody tr.row-overdue-quote td:first-child{border-left:4px solid #f97316}
+tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
 .mono{font-family:'JetBrains Mono',monospace;font-size:12px}
 .bold{font-weight:600}
 
