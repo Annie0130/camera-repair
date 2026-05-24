@@ -500,7 +500,6 @@ tbody tr.row-overdue-repair:hover{background:#fee2e2}
               <th>日期</th>
               <th>型號</th>
               <th>機身碼</th>
-              <th>手寫單號</th>
               <th>問題</th>
               <th>所有人</th>
               <th>維修店</th>
@@ -951,7 +950,6 @@ function renderTable(list) {
       <td style="color:var(--text3);white-space:nowrap">${fmtDate(o.date)}</td>
       <td class="bold">${o.model}</td>
       <td class="mono">${o.serial}</td>
-      <td class="mono" style="color:var(--text2)">${o.refno||'—'}</td>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)">${o.issue}</td>
       <td>${ownerHtml(o)}</td>
       <td>${shopHtml(o.shop)}</td>
