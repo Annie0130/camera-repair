@@ -420,8 +420,8 @@ input[type=number]{-moz-appearance:textfield}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .shop-tag,.status-pill,.overdue-chip,.dayplain{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;font-size:14px;font-weight:600;line-height:1.2;white-space:nowrap;border:1px solid transparent}
 .dayplain{color:var(--text3);background:var(--surface2)}
-.own-main{font-size:14px;font-weight:600;white-space:nowrap}
-.own-sub{font-size:12px;color:var(--text3);white-space:nowrap;margin-top:2px}
+.own-main{font-size:13px;font-weight:600;white-space:nowrap}
+.own-sub{font-size:11px;color:var(--text3);white-space:nowrap;margin-top:2px}
 th.sortable{cursor:pointer;user-select:none}
 th.sortable:hover{color:var(--text)}
 .note-area{width:100%;min-height:110px;resize:vertical;line-height:1.6}
@@ -632,6 +632,15 @@ th.sortable:hover{color:var(--text)}
 </div>
 
 
+<!-- Progress note modal -->
+<div class="overlay" id="modal-note">
+  <div class="modal" style="width:520px">
+    <div class="modal-hd"><div class="modal-title" id="n-title">維修進度說明</div><button class="modal-close" onclick="closeModal('modal-note')">✕</button></div>
+    <div class="field full"><label>維修進度說明（跟廠商追進度用）</label><textarea id="n-note" class="note-area" style="min-height:160px" placeholder="例如：10/28 已問明豐，等零件；預計 11/5 回報價…"></textarea></div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-note')">取消</button><button class="btn btn-primary" onclick="saveNote()">儲存</button></div>
+  </div>
+</div>
+
 <!-- Quick status modal -->
 <div class="overlay" id="modal-quick">
   <div class="modal" style="width:420px">
@@ -644,7 +653,7 @@ th.sortable:hover{color:var(--text)}
       </div>
       <div id="q-w-note" style="display:none;margin-top:8px;font-size:13px;color:var(--teal)">🛡 保固：收費固定 $0，只填維修成本</div>
     </div>
-    <div class="field full" style="margin-top:10px"><label>維修進度說明</label><textarea id="q-note" class="note-area" style="min-height:90px" placeholder="跟廠商追到的進度…"></textarea></div>
+
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-quick')">取消</button><button class="btn btn-primary" onclick="saveQuick()">儲存</button></div>
   </div>
 </div>
@@ -1042,7 +1051,7 @@ function renderTable(list) {
       <td>${ownerHtml(o)}</td>
       <td>${shopHtml(o.shop)}</td>
       <td onclick="event.stopPropagation();openQuick('${o.id}')" style="cursor:pointer" title="點一下快速改狀態">${progressHtml(o.status)}</td>
-      <td>${daysHtml}</td>
+      <td onclick="event.stopPropagation();openNote('${o.id}')" style="cursor:pointer" title="點一下填維修進度說明">${daysHtml}${o.note?'<span title="有進度說明" style="margin-left:4px">📝</span>':''}</td>
       <td>${chargeHtml}</td>
       <td class="hidden-cost">${fmtM(o.cost)}</td>
       <td class="${profit.cls}">${profit.display}</td>
@@ -1252,6 +1261,23 @@ async function saveOrder() {
 
 
 
+// ── Progress note ─────────────────────────────────────────
+let noteId = null;
+function openNote(id) {
+  const o = orders.find(x => x.id === id); if (!o) return;
+  noteId = id;
+  document.getElementById('n-title').textContent = `${o.model}（${o.serial}）`;
+  document.getElementById('n-note').value = o.note || '';
+  openModal('modal-note');
+}
+async function saveNote() {
+  const o = orders.find(x => x.id === noteId); if (!o) return;
+  o.note = document.getElementById('n-note').value.trim();
+  o.timeline = [...(o.timeline||[]), {time: nowStr(), text: '更新維修進度說明'}];
+  save(); closeModal('modal-note'); filterOrders();
+  await pushToGS(o);
+}
+
 // ── Quick status ──────────────────────────────────────────
 let quickId = null, quickStatus = '送件';
 function openQuick(id) {
@@ -1260,7 +1286,7 @@ function openQuick(id) {
   document.getElementById('q-title').textContent = `${o.model}（${o.serial}）`;
   document.getElementById('q-price').value = o.charge ?? '';
   document.getElementById('q-cost').value = o.cost ?? '';
-  document.getElementById('q-note').value = o.note || '';
+
   renderQuick(); openModal('modal-quick');
 }
 function renderQuick() {
@@ -1283,7 +1309,6 @@ async function saveQuick() {
   else if (!isW && v !== '') o.charge = parseFloat(v);
   const cv = document.getElementById('q-cost').value;
   o.cost = cv !== '' ? parseFloat(cv) : null;
-  o.note = document.getElementById('q-note').value.trim();
   o.timeline = [...(o.timeline||[]), {time: nowStr(), text: old !== o.status ? `狀態更新：${STATUS_LABEL[o.status]}` + (o.charge ? ` $${o.charge}` : '') : '資料更新'}];
   save(); closeModal('modal-quick'); updateStats(); filterOrders();
   await pushToGS(o);
@@ -1621,7 +1646,11 @@ function printQuote() {
       .qc-footer-brand{font-size:12px;color:#a8a8a0;font-weight:500}
       .qc-footer-note{font-size:11px;color:#c4c4bb}
       @media print{body{background:white;padding:0}@page{margin:8mm}}
-    </style>
+    #orders-tbody td{font-size:13.7px}
+#orders-tbody .mono{font-size:11px}
+#orders-tbody .shop-tag,#orders-tbody .status-pill,#orders-tbody .overdue-chip,#orders-tbody .dayplain,#orders-tbody .own-main{font-size:12.7px}
+#orders-tbody .own-sub,#orders-tbody .repeat-chip{font-size:10.7px}
+</style>
   </head><body>${card}</body></html>`);
   win.document.close();
   setTimeout(() => win.print(), 500);
