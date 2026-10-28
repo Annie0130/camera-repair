@@ -661,11 +661,11 @@ th.sortable:hover{color:var(--text)}
 
 <!-- Batch modal -->
 <div class="overlay" id="modal-batch">
-  <div class="modal" style="width:980px">
+  <div class="modal" style="width:1140px">
     <div class="modal-hd"><div class="modal-title">批次新增維修單</div><button class="modal-close" onclick="closeModal('modal-batch')">✕</button></div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">可以直接從試算表複製多列貼到下面（欄位順序：日期、型號、機身碼、問題、維修店、性質），或在表格裡逐列填。日期留空＝今天。</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">可以直接從試算表複製多列貼到下面（欄位順序：日期、型號、機身碼、問題、配件、維修店、性質、收購成本），或在表格裡逐列填。日期留空＝今天。</div>
     <textarea id="b-paste" placeholder="貼上試算表內容…" style="width:100%;height:70px;margin-bottom:8px" oninput="parseBatchPaste()"></textarea>
-    <div style="overflow-x:auto"><table id="b-table" style="min-width:860px"><thead><tr><th>日期</th><th>型號</th><th>機身碼</th><th>問題</th><th>維修店</th><th>性質</th><th></th></tr></thead><tbody id="b-body"></tbody></table></div>
+    <div style="overflow-x:auto"><table id="b-table" style="min-width:1080px"><thead><tr><th>日期</th><th>型號</th><th>機身碼</th><th>問題</th><th>配件</th><th>維修店</th><th>性質</th><th>收購成本 🔒</th><th></th></tr></thead><tbody id="b-body"></tbody></table></div>
     <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addBatchRow()">＋ 加一列</button>
     <div class="modal-ft"><span id="b-count" style="margin-right:auto;color:var(--text3);font-size:13px"></span><button class="btn btn-ghost" onclick="closeModal('modal-batch')">取消</button><button class="btn btn-primary" onclick="saveBatch()">全部儲存</button></div>
   </div>
@@ -1315,6 +1315,7 @@ async function saveNote() {
 // ── Batch add ─────────────────────────────────────────────
 const B_OWNERS = ['我們的','客人的','保固免費','代送修','親朋好友'];
 const B_SHOPS = ['明豐','米奇','原廠'];
+const B_PARTS = ['沒配件','前架子','後架子'];
 function batchRowHtml(r) {
   r = r || {};
   const sel = (arr, v) => arr.map(x => `<option${x===v?' selected':''}>${x}</option>`).join('');
@@ -1323,8 +1324,10 @@ function batchRowHtml(r) {
     <td><input type="text" class="b-model" value="${r.model||''}" style="width:150px"></td>
     <td><input type="text" class="b-serial" value="${r.serial||''}" style="width:100px"></td>
     <td><input type="text" class="b-issue" value="${r.issue||''}" style="width:260px"></td>
+    <td><select class="b-parts">${sel(B_PARTS, r.parts||'沒配件')}</select></td>
     <td><select class="b-shop">${sel(B_SHOPS, r.shop||'明豐')}</select></td>
     <td><select class="b-owner">${sel(B_OWNERS, r.owner||'我們的')}</select></td>
+    <td><input type="number" class="b-pcost" value="${r.pcost??''}" style="width:90px"></td>
     <td><button class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove();updBatchCount()">✕</button></td></tr>`;
 }
 function openBatch() {
@@ -1345,11 +1348,14 @@ function normDate(t) {
 function parseBatchPaste() {
   const t = document.getElementById('b-paste').value.trim(); if (!t) return;
   const rows = t.split(/\r?\n/).map(l => l.split('\t')).filter(c => (c[1]||'').trim());
+  const num = v => { const n = parseFloat(String(v||'').replace(/[,$\s]/g,'')); return isNaN(n) ? '' : n; };
   document.getElementById('b-body').innerHTML = rows.map(c => {
-    const own = (c[5]||'').trim();
+    const own = (c[6]||'').trim(), sh = (c[5]||'');
     return batchRowHtml({date:(c[0]||'').trim(), model:(c[1]||'').trim(), serial:(c[2]||'').trim(), issue:(c[3]||'').trim(),
-      shop: B_SHOPS.find(x => (c[4]||'').includes(x) || (x==='明豐' && (c[4]||'').includes('明峰'))) || '明豐',
-      owner: B_OWNERS.find(x => own.includes(x.replace('的',''))) || '我們的'});
+      parts: B_PARTS.find(x => (c[4]||'').trim() === x) || '沒配件',
+      shop: B_SHOPS.find(x => sh.includes(x) || (x==='明豐' && sh.includes('明峰'))) || '明豐',
+      owner: B_OWNERS.find(x => own.includes(x.replace('的',''))) || '我們的',
+      pcost: num(c[7])});
   }).join('');
   updBatchCount();
 }
@@ -1358,9 +1364,9 @@ async function saveBatch() {
     const g = c => tr.querySelector(c).value.trim();
     const ot = g('.b-owner');
     return { id: Date.now().toString() + i, date: normDate(g('.b-date')), model: g('.b-model'), serial: g('.b-serial'), issue: g('.b-issue'),
-      parts: '沒配件', owner: (ot==='我們的'||ot==='保固免費') ? '我們的' : '客人的',
+      parts: g('.b-parts'), owner: (ot==='我們的'||ot==='保固免費') ? '我們的' : '客人的',
       ownerType: (ot==='我們的'||ot==='客人的') ? '' : ot, shop: g('.b-shop'), status: '送件', refno: '',
-      charge: ot==='保固免費' ? 0 : null, cost: null, purchaseCost: null, warranty: ot==='保固免費', contact: '', note: '', photos: [],
+      charge: ot==='保固免費' ? 0 : null, cost: null, purchaseCost: g('.b-pcost')!=='' ? parseFloat(g('.b-pcost')) : null, warranty: ot==='保固免費', contact: '', note: '', photos: [],
       timeline: [{time: nowStr(), text: '批次新增'}] };
   }).filter(o => o.model);
   if (!list.length) { alert('至少要填一筆型號'); return; }
