@@ -416,6 +416,15 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
 .repeat-chip{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:600;white-space:nowrap}
 .status-pill{cursor:pointer;display:inline-block;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:600;white-space:nowrap}
 .sp-0{background:#fef3c7;color:#b45309}.sp-1{background:#dbeafe;color:#1d4ed8}.sp-2{background:#dcfce7;color:#15803d}.sp-x{background:#f3f4f6;color:#6b7280}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.shop-tag,.status-pill,.overdue-chip,.dayplain{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;font-size:14px;font-weight:600;line-height:1.2;white-space:nowrap;border:1px solid transparent}
+.dayplain{color:var(--text3);background:var(--surface2)}
+.own-main{font-size:14px;font-weight:600;white-space:nowrap}
+.own-sub{font-size:12px;color:var(--text3);white-space:nowrap;margin-top:2px}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--text)}
+.note-area{width:100%;min-height:110px;resize:vertical;line-height:1.6}
 </style>
 </head>
 <body>
@@ -496,7 +505,13 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
           <button class="tab-btn active" data-tab="active" onclick="setTab('active')">進行中 <span id="tab-n-active"></span></button>
           <button class="tab-btn" data-tab="done" onclick="setTab('done')">已完成 <span id="tab-n-done"></span></button>
         </div>
-        <input type="hidden" id="filter-status" value="">
+        <select class="filter-select" id="filter-status" onchange="filterOrders()">
+          <option value="">全部狀態</option>
+          <option value="送件">送修</option>
+          <option value="報修">報價</option>
+          <option value="od-q">送件逾時</option>
+          <option value="od-r">報修逾時</option>
+        </select>
         <select class="filter-select" id="filter-owner" onchange="filterOrders()">
           <option value="">全部所有人</option>
           <option value="我們的">我們的</option>
@@ -512,17 +527,17 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
         <table>
           <thead>
             <tr>
-              <th>日期</th>
-              <th>型號</th>
-              <th>機身碼</th>
+              <th class="sortable" data-k="date" onclick="setSort('date')">日期<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="model" onclick="setSort('model')">型號<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="serial" onclick="setSort('serial')">機身碼<span class="sort-ind"></span></th>
               <th>問題</th>
-              <th>所有人</th>
-              <th>維修店</th>
-              <th>狀態</th>
-              <th>天數</th>
-              <th>收費</th>
-              <th>成本 🔒</th>
-              <th>利潤 🔒</th>
+              <th class="sortable" data-k="owner" onclick="setSort('owner')">所有人<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="shop" onclick="setSort('shop')">維修店<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="status" onclick="setSort('status')">狀態<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="days" onclick="setSort('days')">天數<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="charge" onclick="setSort('charge')">收費<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="cost" onclick="setSort('cost')">成本 🔒<span class="sort-ind"></span></th>
+              <th class="sortable" data-k="profit" onclick="setSort('profit')">利潤 🔒<span class="sort-ind"></span></th>
             </tr>
           </thead>
           <tbody id="orders-tbody"></tbody>
@@ -622,7 +637,14 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
   <div class="modal" style="width:420px">
     <div class="modal-hd"><div class="modal-title" id="q-title">快速改狀態</div><button class="modal-close" onclick="closeModal('modal-quick')">✕</button></div>
     <div id="q-btns" style="display:flex;gap:8px;margin-bottom:14px"></div>
-    <div class="field" id="q-price-wrap"><label>向客人收費 / 報價金額 $</label><input id="q-price" type="number" placeholder="例如 1200"/></div>
+    <div id="q-price-wrap">
+      <div class="fgrid">
+        <div class="field" id="q-charge-field"><label>報價收費 $</label><input id="q-price" type="number" placeholder="例如 1200"/></div>
+        <div class="field"><label>維修成本 $ 🔒</label><input id="q-cost" type="number" placeholder="例如 800"/></div>
+      </div>
+      <div id="q-w-note" style="display:none;margin-top:8px;font-size:13px;color:var(--teal)">🛡 保固：收費固定 $0，只填維修成本</div>
+    </div>
+    <div class="field full" style="margin-top:10px"><label>維修進度說明</label><textarea id="q-note" class="note-area" style="min-height:90px" placeholder="跟廠商追到的進度…"></textarea></div>
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-quick')">取消</button><button class="btn btn-primary" onclick="saveQuick()">儲存</button></div>
   </div>
 </div>
@@ -684,7 +706,7 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
           </select>
         </div>
       </div>
-      <div class="field full" style="margin-top:10px"><label>備註</label><input id="f-note" type="text" placeholder="備註…"/></div>
+      <div class="field full" style="margin-top:10px"><label>備註／維修進度說明（跟廠商追進度用）</label><textarea id="f-note" class="note-area" placeholder="例如：10/28 已問明豐，等零件；預計 11/5 回報價…"></textarea></div>
     </div>
     <div class="fsec">
       <div class="fsec-title">機身照片（送修時拍照留存）</div>
@@ -773,15 +795,11 @@ function ownerLabel(o) {
 }
 function ownerHtml(o) {
   const raw = o.ownerRaw || '';
-  if (raw.includes('親朋好友') || o.ownerType === '親朋好友') {
-    return `<span style="font-size:12px;color:#d97706;font-weight:600">👥 親朋好友</span>`;
-  }
-  if (o.owner === '客人的') {
-    const sub = o.ownerType === '保固免費' ? '保固內' : o.ownerType === '代送修' ? '報價修' : '';
-    return `<span style="font-size:12px;color:var(--green);font-weight:600">客人的</span>${sub ? `<span style="font-size:11px;color:var(--text3);margin-left:4px">${sub}</span>` : ''}`;
-  }
-  const sub = o.ownerType === '保固免費' ? '保固' : '';
-  return `<span style="font-size:12px;color:var(--blue)">我們的</span>${sub ? `<span style="font-size:11px;color:var(--text3);margin-left:4px">${sub}</span>` : ''}`;
+  const main = (t, c) => `<div class="own-main" style="color:${c}">${t}</div>`;
+  const sub = t => t ? `<div class="own-sub">${t}</div>` : '';
+  if (raw.includes('親朋好友') || o.ownerType === '親朋好友') return main('親朋好友', '#d97706');
+  if (o.owner === '客人的') return main('客人的', 'var(--green)') + sub(o.ownerType === '保固免費' ? '保固內' : o.ownerType === '代送修' ? '報價修' : '');
+  return main('我們的', 'var(--blue)') + sub(o.ownerType === '保固免費' ? '保固' : '');
 }
 
 // ── Data ─────────────────────────────────────────────────
@@ -952,7 +970,11 @@ function updateStats() {
 }
 
 // ── Table ─────────────────────────────────────────────────
-let curTab = 'active';
+let curTab = 'active', sortKey = '', sortDir = 1;
+function setSort(k) {
+  if (sortKey === k) { if (sortDir === 1) sortDir = -1; else { sortKey = ''; sortDir = 1; } } else { sortKey = k; sortDir = 1; }
+  filterOrders();
+}
 function setTab(t) {
   curTab = t;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
@@ -975,7 +997,9 @@ function filterOrders() {
   const filtered = orders.filter(o => {
     if (curTab === 'active' ? !isActive(o) : isActive(o)) return false;
     if (shop && o.shop !== shop) return false;
-    if (status && o.status !== status) return false;
+    if (status === 'od-q') { if (!isOverdueQuote(o)) return false; }
+    else if (status === 'od-r') { if (!isOverdueRepair(o)) return false; }
+    else if (status && o.status !== status) return false;
     if (owner) {
       if (owner === '親朋好友的' && o.ownerType !== '親朋好友') return false;
       if (owner === '客人的' && (o.owner !== '客人的' || o.ownerType === '親朋好友')) return false;
@@ -984,7 +1008,12 @@ function filterOrders() {
     if (search && !`${o.model} ${o.serial} ${o.issue} ${o.contact} ${o.refno||''}`.toLowerCase().includes(search)) return false;
     return true;
   });
-  if (curTab === 'done') filtered.sort((a,b) => String(b.date).localeCompare(String(a.date)));
+  if (curTab === 'done' && !sortKey) filtered.sort((a,b) => String(b.date).localeCompare(String(a.date)));
+  if (sortKey) {
+    const val = o => ({date:String(o.date), days:String(o.date), model:String(o.model).toLowerCase(), serial:String(o.serial), owner:ownerLabel(o), shop:o.shop||'', status:STATUS_MAP[o.status]??9, charge:o.charge??-1, cost:o.cost??-1, profit:(calcProfit(o).val??-1e12)})[sortKey];
+    filtered.sort((a,b) => { const x=val(a), y=val(b); const c = (typeof x==='number'&&typeof y==='number') ? x-y : String(x).localeCompare(String(y), 'zh-TW', {numeric:true}); return sortDir*(sortKey==='days'?-c:c); });
+  }
+  document.querySelectorAll('th.sortable').forEach(t => t.querySelector('.sort-ind').textContent = t.dataset.k===sortKey ? (sortDir>0?' ▲':' ▼') : '');
   renderTable(filtered);
 }
 
@@ -998,8 +1027,8 @@ function renderTable(list) {
     let daysHtml = '';
     if (oq) daysHtml = `<span class="overdue-chip overdue-chip-amber">⏰ ${days}天</span>`;
     else if (or_) daysHtml = `<span class="overdue-chip">🔧 ${days}天</span>`;
-    else if (isActive(o)) daysHtml = `<span style="color:var(--text3);font-size:12px">${days}天</span>`;
-    else daysHtml = `<span style="color:var(--text3);font-size:12px">—</span>`;
+    else if (isActive(o)) daysHtml = `<span class="dayplain">${days}天</span>`;
+    else daysHtml = `<span class="dayplain">—</span>`;
     const profit = calcProfit(o);
     const isWarranty = o.warranty || o.ownerType === '保固免費';
     const chargeHtml = isWarranty
@@ -1058,7 +1087,7 @@ function openDetail(id) {
     <div class="detail-row"><span class="detail-label">所有人</span><span class="detail-value">${ownerHtml(o)}</span></div>
     <div class="detail-row"><span class="detail-label">維修店</span><span class="detail-value">${shopHtml(o.shop)}</span></div>
     <div class="detail-row"><span class="detail-label">客人聯絡 🔒</span><span class="detail-value" style="color:var(--text2)">${o.contact||'—'}</span></div>
-    <div class="detail-row"><span class="detail-label">備註</span><span class="detail-value">${o.note||'—'}</span></div>
+    <div class="detail-row"><span class="detail-label">維修進度</span><span class="detail-value" style="white-space:pre-wrap">${o.note||'—'}</span></div>
     <div class="detail-row"><span class="detail-label">收費</span><span class="detail-value" style="color:var(--green);font-weight:600">${chargeDisplay}</span></div>
     <div class="detail-row"><span class="detail-label">維修成本 🔒</span><span class="detail-value" style="color:var(--text2)">${fmtM(o.cost)}</span></div>
     ${o.owner==='我們的'?`<div class="detail-row"><span class="detail-label">收購成本 🔒</span><span class="detail-value" style="color:var(--purple);font-weight:600">${o.purchaseCost?fmtM(o.purchaseCost):'未填'}</span></div>`:''}
@@ -1230,13 +1259,18 @@ function openQuick(id) {
   quickId = id; quickStatus = o.status;
   document.getElementById('q-title').textContent = `${o.model}（${o.serial}）`;
   document.getElementById('q-price').value = o.charge ?? '';
+  document.getElementById('q-cost').value = o.cost ?? '';
+  document.getElementById('q-note').value = o.note || '';
   renderQuick(); openModal('modal-quick');
 }
 function renderQuick() {
   const items = [['送件','送修'],['報修','報價'],['完成','完成'],['取消','取消']];
   document.getElementById('q-btns').innerHTML = items.map(([v,l]) =>
     `<button class="btn ${quickStatus===v?'btn-primary':'btn-ghost'}" style="flex:1" onclick="quickStatus='${v}';renderQuick()">${l}</button>`).join('');
+  const o = orders.find(x => x.id === quickId), isW = o && (o.warranty || o.ownerType === '保固免費');
   document.getElementById('q-price-wrap').style.display = (quickStatus==='報修'||quickStatus==='完成') ? '' : 'none';
+  document.getElementById('q-charge-field').style.display = isW ? 'none' : '';
+  document.getElementById('q-w-note').style.display = isW ? '' : 'none';
 }
 async function saveQuick() {
   const o = orders.find(x => x.id === quickId); if (!o) return;
@@ -1247,6 +1281,9 @@ async function saveQuick() {
   o.status = quickStatus;
   if (quickStatus === '送件') o.charge = isW ? 0 : null;
   else if (!isW && v !== '') o.charge = parseFloat(v);
+  const cv = document.getElementById('q-cost').value;
+  o.cost = cv !== '' ? parseFloat(cv) : null;
+  o.note = document.getElementById('q-note').value.trim();
   o.timeline = [...(o.timeline||[]), {time: nowStr(), text: old !== o.status ? `狀態更新：${STATUS_LABEL[o.status]}` + (o.charge ? ` $${o.charge}` : '') : '資料更新'}];
   save(); closeModal('modal-quick'); updateStats(); filterOrders();
   await pushToGS(o);
