@@ -1043,6 +1043,7 @@ function renderTable(list) {
     const chargeHtml = isWarranty
       ? `<span class="badge b-ship" style="font-size:11px">保固 $0</span>`
       : (o.charge!==null ? `<span style="font-weight:600;color:var(--green)">${fmtM(o.charge)}</span>` : `<span class="hidden-cost">—</span>`);
+    const noteRow = openNoteId === o.id ? `<tr class="note-row"><td colspan="10" onclick="event.stopPropagation()"><div style="display:flex;gap:10px;align-items:flex-start"><textarea id="n-inline" placeholder="維修進度說明（跟廠商追進度用）…">${(o.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea><div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary btn-sm" onclick="saveNote()">儲存</button><button class="btn btn-ghost btn-sm" onclick="openNoteId=null;filterOrders()">取消</button></div></div></td></tr>` : '';
     return `<tr class="${rowCls}" onclick="openDetail('${o.id}')">
       <td style="color:var(--text3);white-space:nowrap">${fmtDate(o.date)}</td>
       <td class="bold ${repeatCount(o)>1?'repeat-name':''}">${o.model}${repeatCount(o)>1?`<span class="repeat-chip">🔁 第${repeatCount(o)}次送修</span>`:''}</td>
@@ -1051,12 +1052,13 @@ function renderTable(list) {
       <td>${ownerHtml(o)}</td>
       <td>${shopHtml(o.shop)}</td>
       <td onclick="event.stopPropagation();openQuick('${o.id}')" style="cursor:pointer" title="點一下快速改狀態">${progressHtml(o.status)}</td>
-      <td onclick="event.stopPropagation();openNote('${o.id}')" style="cursor:pointer" title="點一下填維修進度說明">${daysHtml}${o.note?'<span title="有進度說明" style="margin-left:4px">📝</span>':''}</td>
+      <td onclick="event.stopPropagation();openNote('${o.id}')" style="cursor:pointer" title="點一下填寫維修進度"><span class="${o.note?'has-note':''}">${daysHtml}</span></td>
       <td>${chargeHtml}</td>
       <td class="hidden-cost">${fmtM(o.cost)}</td>
       <td class="${profit.cls}">${profit.display}</td>
-    </tr>`;
+    </tr>${noteRow}`;
   }).join('');
+  const ta = document.getElementById('n-inline'); if (ta) ta.focus();
 }
 
 // ── Detail Progress Visual ────────────────────────────────
@@ -1262,55 +1264,13 @@ async function saveOrder() {
 
 
 // ── Progress note ─────────────────────────────────────────
-let noteId = null;
-function openNote(id) {
-  const o = orders.find(x => x.id === id); if (!o) return;
-  noteId = id;
-  document.getElementById('n-title').textContent = `${o.model}（${o.serial}）`;
-  document.getElementById('n-note').value = o.note || '';
-  openModal('modal-note');
-}
+let openNoteId = null;
+function openNote(id) { openNoteId = (openNoteId === id) ? null : id; filterOrders(); }
 async function saveNote() {
-  const o = orders.find(x => x.id === noteId); if (!o) return;
-  o.note = document.getElementById('n-note').value.trim();
+  const o = orders.find(x => x.id === openNoteId); if (!o) return;
+  o.note = document.getElementById('n-inline').value.trim();
   o.timeline = [...(o.timeline||[]), {time: nowStr(), text: '更新維修進度說明'}];
-  save(); closeModal('modal-note'); filterOrders();
-  await pushToGS(o);
-}
-
-// ── Quick status ──────────────────────────────────────────
-let quickId = null, quickStatus = '送件';
-function openQuick(id) {
-  const o = orders.find(x => x.id === id); if (!o) return;
-  quickId = id; quickStatus = o.status;
-  document.getElementById('q-title').textContent = `${o.model}（${o.serial}）`;
-  document.getElementById('q-price').value = o.charge ?? '';
-  document.getElementById('q-cost').value = o.cost ?? '';
-
-  renderQuick(); openModal('modal-quick');
-}
-function renderQuick() {
-  const items = [['送件','送修'],['報修','報價'],['完成','完成'],['取消','取消']];
-  document.getElementById('q-btns').innerHTML = items.map(([v,l]) =>
-    `<button class="btn ${quickStatus===v?'btn-primary':'btn-ghost'}" style="flex:1" onclick="quickStatus='${v}';renderQuick()">${l}</button>`).join('');
-  const o = orders.find(x => x.id === quickId), isW = o && (o.warranty || o.ownerType === '保固免費');
-  document.getElementById('q-price-wrap').style.display = (quickStatus==='報修'||quickStatus==='完成') ? '' : 'none';
-  document.getElementById('q-charge-field').style.display = isW ? 'none' : '';
-  document.getElementById('q-w-note').style.display = isW ? '' : 'none';
-}
-async function saveQuick() {
-  const o = orders.find(x => x.id === quickId); if (!o) return;
-  const isW = o.warranty || o.ownerType === '保固免費';
-  const v = document.getElementById('q-price').value;
-  if (quickStatus === '報修' && !isW && v === '') { alert('請輸入報價金額'); return; }
-  const old = o.status;
-  o.status = quickStatus;
-  if (quickStatus === '送件') o.charge = isW ? 0 : null;
-  else if (!isW && v !== '') o.charge = parseFloat(v);
-  const cv = document.getElementById('q-cost').value;
-  o.cost = cv !== '' ? parseFloat(cv) : null;
-  o.timeline = [...(o.timeline||[]), {time: nowStr(), text: old !== o.status ? `狀態更新：${STATUS_LABEL[o.status]}` + (o.charge ? ` $${o.charge}` : '') : '資料更新'}];
-  save(); closeModal('modal-quick'); updateStats(); filterOrders();
+  openNoteId = null; save(); filterOrders();
   await pushToGS(o);
 }
 
@@ -1646,10 +1606,13 @@ function printQuote() {
       .qc-footer-brand{font-size:12px;color:#a8a8a0;font-weight:500}
       .qc-footer-note{font-size:11px;color:#c4c4bb}
       @media print{body{background:white;padding:0}@page{margin:8mm}}
-    #orders-tbody td{font-size:13.7px}
-#orders-tbody .mono{font-size:11px}
-#orders-tbody .shop-tag,#orders-tbody .status-pill,#orders-tbody .overdue-chip,#orders-tbody .dayplain,#orders-tbody .own-main{font-size:12.7px}
-#orders-tbody .own-sub,#orders-tbody .repeat-chip{font-size:10.7px}
+    #orders-tbody td{font-size:11px}
+#orders-tbody .mono{font-size:9.5px}
+#orders-tbody .shop-tag,#orders-tbody .status-pill,#orders-tbody .overdue-chip,#orders-tbody .dayplain,#orders-tbody .own-main{font-size:10px}
+#orders-tbody .own-sub,#orders-tbody .repeat-chip{font-size:9px}
+#orders-tbody .has-note{text-decoration:underline;text-underline-offset:3px}
+#orders-tbody tr.note-row,#orders-tbody tr.note-row:hover{background:var(--surface2);cursor:default}
+#orders-tbody tr.note-row textarea{width:100%;min-height:70px;font-size:13px;line-height:1.6}
 </style>
   </head><body>${card}</body></html>`);
   win.document.close();
