@@ -688,10 +688,10 @@ th.sortable:hover{color:var(--text)}
         <div class="field">
           <label>性質</label>
           <select id="f-ownerType" onchange="updateOwnerUI()">
-            <option value="我們的">我們的</option>
-            <option value="保固免費">我們的（保固免費送修）</option>
-            <option value="代送修">客人的（代送修）</option>
-            <option value="客人的">客人的</option>
+            <option value="未入庫">我們（未入庫）</option>
+            <option value="已入庫">我們（已入庫）</option>
+            <option value="保固免費">客人（保固內）</option>
+            <option value="代送修">客人（代送修）</option>
             <option value="親朋好友">親朋好友的</option>
           </select>
         </div>
@@ -799,7 +799,7 @@ const STATUS_CLASS = {
 
 function ownerLabel(o) {
   if (o.ownerType === '親朋好友') return '親朋好友的';
-  if (o.ownerType === '保固免費') return '我們的（保固）';
+  if (o.ownerType === '保固免費') return '客人（保固內）';
   if (o.ownerType === '代送修') return '客人（代送修）';
   return o.owner === '我們的' ? '我們的' : '客人的';
 }
@@ -808,8 +808,8 @@ function ownerHtml(o) {
   const main = (t, c) => `<div class="own-main" style="color:${c}">${t}</div>`;
   const sub = t => t ? `<div class="own-sub">${t}</div>` : '';
   if (raw.includes('親朋好友') || o.ownerType === '親朋好友') return main('親朋好友', '#d97706');
-  if (o.owner === '客人的') return main('客人的', 'var(--green)') + sub(o.ownerType === '保固免費' ? '保固內' : o.ownerType === '代送修' ? '報價修' : '');
-  return main('我們的', 'var(--blue)') + sub(o.ownerType === '保固免費' ? '保固' : '');
+  if (o.owner === '客人的') return main('客人的', 'var(--green)') + sub(o.ownerType === '保固免費' ? '保固內' : '代送修');
+  return main('我們的', 'var(--blue)') + sub(o.ownerType === '未入庫' ? '未入庫' : o.ownerType === '保固免費' ? '保固' : '已入庫');
 }
 
 // ── Data ─────────────────────────────────────────────────
@@ -1130,7 +1130,7 @@ function editOrder() {
   document.getElementById('f-refno').value = o.refno || '';
   // ownerType
   let ot = o.ownerType || '';
-  if (!ot) ot = o.owner === '我們的' ? '我們的' : '客人的';
+  if (!['未入庫','已入庫','保固免費','代送修','親朋好友'].includes(ot)) ot = o.owner === '我們的' ? '已入庫' : '代送修';
   document.getElementById('f-ownerType').value = ot;
   document.getElementById('f-shop').value = o.shop;
   document.getElementById('f-status').value = ['送件','報修','完成','取消'].includes(o.status) ? o.status : (o.status === '報價' || o.status === '維修' ? '報修' : '送件');
@@ -1187,9 +1187,8 @@ function removePhoto(idx) {
 function updateOwnerUI() {
   const t = document.getElementById('f-ownerType').value;
   const isWarranty = t === '保固免費';
-  const isProxy = t === '代送修';
   document.getElementById('warranty-note').style.display = isWarranty ? '' : 'none';
-  document.getElementById('contact-field').style.display = (isProxy || t === '客人的') ? '' : 'none';
+  document.getElementById('contact-field').style.display = (t === '代送修' || t === '保固免費') ? '' : 'none';
   if (isWarranty) { document.getElementById('f-charge').value = '0'; updateProfit(); }
 }
 
@@ -1200,7 +1199,7 @@ function openAddModal() {
   document.getElementById('f-contact-basic').value = '';
   currentPhotos = [];
   renderPhotoPreview();
-  document.getElementById('f-ownerType').value = '我們的';
+  document.getElementById('f-ownerType').value = '已入庫';
   document.getElementById('f-parts').value = '沒配件';
   document.getElementById('f-shop').value = '明豐';
   document.getElementById('f-status').value = '送件';
@@ -1224,7 +1223,7 @@ function updateProfit() {
 async function saveOrder() {
   const ownerType = document.getElementById('f-ownerType').value;
   const isWarranty = ownerType === '保固免費';
-  const owner = (ownerType === '我們的' || ownerType === '保固免費') ? '我們的' : '客人的';
+  const owner = (ownerType === '未入庫' || ownerType === '已入庫') ? '我們的' : '客人的';
   const order = {
     id: editingId || Date.now().toString(),
     date: editingId ? orders.find(o=>o.id===editingId).date : new Date().toISOString().slice(0,10),
@@ -1233,7 +1232,7 @@ async function saveOrder() {
     issue: document.getElementById('f-issue').value.trim(),
     parts: document.getElementById('f-parts').value,
     owner,
-    ownerType: (ownerType === '我們的' || ownerType === '客人的') ? '' : ownerType,
+    ownerType,
     shop: document.getElementById('f-shop').value,
     status: document.getElementById('f-status').value,
     refno: document.getElementById('f-refno').value.trim(),
@@ -1313,7 +1312,8 @@ async function saveNote() {
 }
 
 // ── Batch add ─────────────────────────────────────────────
-const B_OWNERS = ['我們的','客人的','保固免費','代送修','親朋好友'];
+const B_OWNERS = ['我們（未入庫）','我們（已入庫）','客人（保固內）','客人（代送修）','親朋好友的'];
+const B_OWN_TYPE = {'我們（未入庫）':'未入庫','我們（已入庫）':'已入庫','客人（保固內）':'保固免費','客人（代送修）':'代送修','親朋好友的':'親朋好友'};
 const B_SHOPS = ['明豐','米奇','原廠'];
 const B_PARTS = ['沒配件','前架子','後架子'];
 function batchRowHtml(r) {
@@ -1326,7 +1326,7 @@ function batchRowHtml(r) {
     <td><input type="text" class="b-issue" value="${r.issue||''}" style="width:260px"></td>
     <td><select class="b-parts">${sel(B_PARTS, r.parts||'沒配件')}</select></td>
     <td><select class="b-shop">${sel(B_SHOPS, r.shop||'明豐')}</select></td>
-    <td><select class="b-owner">${sel(B_OWNERS, r.owner||'我們的')}</select></td>
+    <td><select class="b-owner">${sel(B_OWNERS, r.owner||'我們（已入庫）')}</select></td>
     <td><input type="number" class="b-pcost" value="${r.pcost??''}" style="width:90px"></td>
     <td><button class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove();updBatchCount()">✕</button></td></tr>`;
 }
@@ -1354,7 +1354,7 @@ function parseBatchPaste() {
     return batchRowHtml({date:(c[0]||'').trim(), model:(c[1]||'').trim(), serial:(c[2]||'').trim(), issue:(c[3]||'').trim(),
       parts: B_PARTS.find(x => (c[4]||'').trim() === x) || '沒配件',
       shop: B_SHOPS.find(x => sh.includes(x) || (x==='明豐' && sh.includes('明峰'))) || '明豐',
-      owner: B_OWNERS.find(x => own.includes(x.replace('的',''))) || '我們的',
+      owner: own.includes('未入庫') ? B_OWNERS[0] : own.includes('親朋') ? B_OWNERS[4] : own.includes('保固') ? B_OWNERS[2] : own.includes('客人') ? B_OWNERS[3] : B_OWNERS[1],
       pcost: num(c[7])});
   }).join('');
   updBatchCount();
@@ -1364,9 +1364,9 @@ async function saveBatch() {
     const g = c => tr.querySelector(c).value.trim();
     const ot = g('.b-owner');
     return { id: Date.now().toString() + i, date: normDate(g('.b-date')), model: g('.b-model'), serial: g('.b-serial'), issue: g('.b-issue'),
-      parts: g('.b-parts'), owner: (ot==='我們的'||ot==='保固免費') ? '我們的' : '客人的',
-      ownerType: (ot==='我們的'||ot==='客人的') ? '' : ot, shop: g('.b-shop'), status: '送件', refno: '',
-      charge: ot==='保固免費' ? 0 : null, cost: null, purchaseCost: g('.b-pcost')!=='' ? parseFloat(g('.b-pcost')) : null, warranty: ot==='保固免費', contact: '', note: '', photos: [],
+      parts: g('.b-parts'), owner: (B_OWN_TYPE[ot]==='未入庫'||B_OWN_TYPE[ot]==='已入庫') ? '我們的' : '客人的',
+      ownerType: B_OWN_TYPE[ot], shop: g('.b-shop'), status: '送件', refno: '',
+      charge: B_OWN_TYPE[ot]==='保固免費' ? 0 : null, cost: null, purchaseCost: g('.b-pcost')!=='' ? parseFloat(g('.b-pcost')) : null, warranty: B_OWN_TYPE[ot]==='保固免費', contact: '', note: '', photos: [],
       timeline: [{time: nowStr(), text: '批次新增'}] };
   }).filter(o => o.model);
   if (!list.length) { alert('至少要填一筆型號'); return; }
@@ -1402,7 +1402,7 @@ function renderReport() {
 
   // 在修庫存值（所有未完成的「我們的」相機收購成本合計）
   const inventoryValue = orders
-    .filter(o => o.owner === '我們的' && isActive(o) && o.purchaseCost)
+    .filter(o => o.owner === '我們的' && o.ownerType !== '未入庫' && isActive(o) && o.purchaseCost)
     .reduce((a, o) => a + (o.purchaseCost||0), 0);
 
   document.getElementById('r-income').textContent=fmtM(totalCharge);
@@ -1433,7 +1433,7 @@ function renderReport() {
     </div>` : '';
 
   // 在修庫存明細
-  const inventoryOrders = orders.filter(o => o.owner==='我們的' && isActive(o));
+  const inventoryOrders = orders.filter(o => o.owner==='我們的' && o.ownerType !== '未入庫' && isActive(o));
   const inventoryDetail = inventoryOrders.length > 0 ? `
     <div class="report-section">
       <div class="report-title">目前在修庫存（${inventoryOrders.length} 件，資金 ${fmtM(inventoryValue)} 暫時無法出售）</div>
