@@ -723,7 +723,7 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
 // ── Config ──────────────────────────────────────────────
 let ALERT_QUOTE_DAYS  = parseInt(localStorage.getItem('alert_quote') || '10');
 let ALERT_REPAIR_DAYS = parseInt(localStorage.getItem('alert_repair') || '10');
-let GS_URL = localStorage.getItem('gs_url') || 'https://script.google.com/macros/s/AKfycbzu1ZQikIfb0jYdzEUGHd_wlSd_j3v1p88Dwa5yOjlgtc3e6XjVo1FxPfJq5zvMwBpJ/exec';
+let GS_URL = localStorage.getItem('gs_url_v2') || 'https://script.google.com/macros/s/AKfycbxvICKdVpwxWgIC8BCN4gv5z6urZlknhslWsHiZURMAFDsUQyCukdAqM7diINaEfmrI/exec';
 let gsConnected = false;
 
 const STEPS = ['送件','報修','完成'];
@@ -802,7 +802,7 @@ function setStatus(msg) {
 
 async function saveGSConfig() {
   GS_URL = document.getElementById('s-gs-url').value.trim();
-  localStorage.setItem('gs_url', GS_URL);
+  localStorage.setItem('gs_url_v2', GS_URL);
   const el = document.getElementById('gs-status');
   el.textContent = '連線中…'; el.style.color = 'var(--text3)';
   const ok = await loadFromGS();
