@@ -425,6 +425,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 th.sortable{cursor:pointer;user-select:none}
 th.sortable:hover{color:var(--text)}
 .note-area{width:100%;min-height:110px;resize:vertical;line-height:1.6}
+#orders-tbody td{font-size:11px}
+#orders-tbody .mono{font-size:9.5px}
+#orders-tbody .shop-tag,#orders-tbody .status-pill,#orders-tbody .overdue-chip,#orders-tbody .dayplain,#orders-tbody .own-main{font-size:10px}
+#orders-tbody .own-sub,#orders-tbody .repeat-chip{font-size:9px}
+#orders-tbody .has-note{text-decoration:underline;text-underline-offset:3px}
+#orders-tbody tr.note-row,#orders-tbody tr.note-row:hover{background:var(--surface2);cursor:default}
+#orders-tbody tr.note-row textarea{width:100%;min-height:70px;font-size:13px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -1650,14 +1657,7 @@ function printQuote() {
       .qc-footer-brand{font-size:12px;color:#a8a8a0;font-weight:500}
       .qc-footer-note{font-size:11px;color:#c4c4bb}
       @media print{body{background:white;padding:0}@page{margin:8mm}}
-    #orders-tbody td{font-size:11px}
-#orders-tbody .mono{font-size:9.5px}
-#orders-tbody .shop-tag,#orders-tbody .status-pill,#orders-tbody .overdue-chip,#orders-tbody .dayplain,#orders-tbody .own-main{font-size:10px}
-#orders-tbody .own-sub,#orders-tbody .repeat-chip{font-size:9px}
-#orders-tbody .has-note{text-decoration:underline;text-underline-offset:3px}
-#orders-tbody tr.note-row,#orders-tbody tr.note-row:hover{background:var(--surface2);cursor:default}
-#orders-tbody tr.note-row textarea{width:100%;min-height:70px;font-size:13px;line-height:1.6}
-</style>
+    </style>
   </head><body>${card}</body></html>`);
   win.document.close();
   setTimeout(() => win.print(), 500);
