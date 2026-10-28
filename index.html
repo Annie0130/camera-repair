@@ -207,7 +207,7 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
 .overdue-chip{
   display:inline-flex;align-items:center;gap:4px;
   background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);
-  border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;
+  border-radius:20px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap;
 }
 .overdue-chip-amber{background:var(--amber-bg);color:#92400e;border-color:var(--amber-bd)}
 
@@ -414,7 +414,7 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
 .issue-cell{min-width:220px;max-width:340px;white-space:normal;word-break:break-word;line-height:1.5;color:var(--text2)}
 .repeat-name{color:#dc2626!important;font-weight:700}
 .repeat-chip{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:600;white-space:nowrap}
-.status-pill{display:inline-block;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:600;white-space:nowrap}
+.status-pill{cursor:pointer;display:inline-block;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:600;white-space:nowrap}
 .sp-0{background:#fef3c7;color:#b45309}.sp-1{background:#dbeafe;color:#1d4ed8}.sp-2{background:#dcfce7;color:#15803d}.sp-x{background:#f3f4f6;color:#6b7280}
 </style>
 </head>
@@ -481,9 +481,9 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
           <div class="stat-sub">已完成件</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">完成待取</div>
+          <div class="stat-label">已完成</div>
           <div class="stat-value sv-purple" id="stat-ready">—</div>
-          <div class="stat-sub">待客人取件</div>
+          <div class="stat-sub">累計件數</div>
         </div>
       </div>
 
@@ -504,6 +504,7 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
           <option value="親朋好友的">親朋好友的</option>
         </select>
         <div class="spacer"></div>
+        <button class="btn btn-ghost" onclick="openBatch()">📋 批次新增</button>
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增維修單</button>
       </div>
 
@@ -522,7 +523,6 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
               <th>收費</th>
               <th>成本 🔒</th>
               <th>利潤 🔒</th>
-              <th></th>
             </tr>
           </thead>
           <tbody id="orders-tbody"></tbody>
@@ -614,6 +614,29 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
 
   </div>
 </main>
+</div>
+
+
+<!-- Quick status modal -->
+<div class="overlay" id="modal-quick">
+  <div class="modal" style="width:420px">
+    <div class="modal-hd"><div class="modal-title" id="q-title">快速改狀態</div><button class="modal-close" onclick="closeModal('modal-quick')">✕</button></div>
+    <div id="q-btns" style="display:flex;gap:8px;margin-bottom:14px"></div>
+    <div class="field" id="q-price-wrap"><label>向客人收費 / 報價金額 $</label><input id="q-price" type="number" placeholder="例如 1200"/></div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-quick')">取消</button><button class="btn btn-primary" onclick="saveQuick()">儲存</button></div>
+  </div>
+</div>
+
+<!-- Batch modal -->
+<div class="overlay" id="modal-batch">
+  <div class="modal" style="width:980px">
+    <div class="modal-hd"><div class="modal-title">批次新增維修單</div><button class="modal-close" onclick="closeModal('modal-batch')">✕</button></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">可以直接從試算表複製多列貼到下面（欄位順序：日期、型號、機身碼、問題、維修店、性質），或在表格裡逐列填。日期留空＝今天。</div>
+    <textarea id="b-paste" placeholder="貼上試算表內容…" style="width:100%;height:70px;margin-bottom:8px" oninput="parseBatchPaste()"></textarea>
+    <div style="overflow-x:auto"><table id="b-table" style="min-width:860px"><thead><tr><th>日期</th><th>型號</th><th>機身碼</th><th>問題</th><th>維修店</th><th>性質</th><th></th></tr></thead><tbody id="b-body"></tbody></table></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addBatchRow()">＋ 加一列</button>
+    <div class="modal-ft"><span id="b-count" style="margin-right:auto;color:var(--text3);font-size:13px"></span><button class="btn btn-ghost" onclick="closeModal('modal-batch')">取消</button><button class="btn btn-primary" onclick="saveBatch()">全部儲存</button></div>
+  </div>
 </div>
 
 <!-- Add/Edit Modal -->
@@ -961,12 +984,13 @@ function filterOrders() {
     if (search && !`${o.model} ${o.serial} ${o.issue} ${o.contact} ${o.refno||''}`.toLowerCase().includes(search)) return false;
     return true;
   });
+  if (curTab === 'done') filtered.sort((a,b) => String(b.date).localeCompare(String(a.date)));
   renderTable(filtered);
 }
 
 function renderTable(list) {
   const tbody = document.getElementById('orders-tbody');
-  if (!list.length) { tbody.innerHTML = `<tr><td colspan="11"><div class="empty">沒有符合的維修單</div></td></tr>`; return; }
+  if (!list.length) { tbody.innerHTML = `<tr><td colspan="10"><div class="empty">沒有符合的維修單</div></td></tr>`; return; }
   tbody.innerHTML = list.map(o => {
     const days = daysSince(o.date);
     const oq = isOverdueQuote(o), or_ = isOverdueRepair(o);
@@ -988,12 +1012,11 @@ function renderTable(list) {
       <td class="issue-cell">${o.issue}</td>
       <td>${ownerHtml(o)}</td>
       <td>${shopHtml(o.shop)}</td>
-      <td>${progressHtml(o.status)}</td>
+      <td onclick="event.stopPropagation();openQuick('${o.id}')" style="cursor:pointer" title="點一下快速改狀態">${progressHtml(o.status)}</td>
       <td>${daysHtml}</td>
       <td>${chargeHtml}</td>
       <td class="hidden-cost">${fmtM(o.cost)}</td>
       <td class="${profit.cls}">${profit.display}</td>
-      <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm" onclick="openDetail('${o.id}')">詳情</button></td>
     </tr>`;
   }).join('');
 }
@@ -1198,6 +1221,95 @@ async function saveOrder() {
   closeModal('modal-add'); updateStats(); filterOrders();
 }
 
+
+
+// ── Quick status ──────────────────────────────────────────
+let quickId = null, quickStatus = '送件';
+function openQuick(id) {
+  const o = orders.find(x => x.id === id); if (!o) return;
+  quickId = id; quickStatus = o.status;
+  document.getElementById('q-title').textContent = `${o.model}（${o.serial}）`;
+  document.getElementById('q-price').value = o.charge ?? '';
+  renderQuick(); openModal('modal-quick');
+}
+function renderQuick() {
+  const items = [['送件','送修'],['報修','報價'],['完成','完成'],['取消','取消']];
+  document.getElementById('q-btns').innerHTML = items.map(([v,l]) =>
+    `<button class="btn ${quickStatus===v?'btn-primary':'btn-ghost'}" style="flex:1" onclick="quickStatus='${v}';renderQuick()">${l}</button>`).join('');
+  document.getElementById('q-price-wrap').style.display = (quickStatus==='報修'||quickStatus==='完成') ? '' : 'none';
+}
+async function saveQuick() {
+  const o = orders.find(x => x.id === quickId); if (!o) return;
+  const isW = o.warranty || o.ownerType === '保固免費';
+  const v = document.getElementById('q-price').value;
+  if (quickStatus === '報修' && !isW && v === '') { alert('請輸入報價金額'); return; }
+  const old = o.status;
+  o.status = quickStatus;
+  if (quickStatus === '送件') o.charge = isW ? 0 : null;
+  else if (!isW && v !== '') o.charge = parseFloat(v);
+  o.timeline = [...(o.timeline||[]), {time: nowStr(), text: old !== o.status ? `狀態更新：${STATUS_LABEL[o.status]}` + (o.charge ? ` $${o.charge}` : '') : '資料更新'}];
+  save(); closeModal('modal-quick'); updateStats(); filterOrders();
+  await pushToGS(o);
+}
+
+// ── Batch add ─────────────────────────────────────────────
+const B_OWNERS = ['我們的','客人的','保固免費','代送修','親朋好友'];
+const B_SHOPS = ['明豐','米奇','原廠'];
+function batchRowHtml(r) {
+  r = r || {};
+  const sel = (arr, v) => arr.map(x => `<option${x===v?' selected':''}>${x}</option>`).join('');
+  return `<tr>
+    <td><input type="text" class="b-date" value="${r.date||''}" placeholder="今天" style="width:110px"></td>
+    <td><input type="text" class="b-model" value="${r.model||''}" style="width:150px"></td>
+    <td><input type="text" class="b-serial" value="${r.serial||''}" style="width:100px"></td>
+    <td><input type="text" class="b-issue" value="${r.issue||''}" style="width:260px"></td>
+    <td><select class="b-shop">${sel(B_SHOPS, r.shop||'明豐')}</select></td>
+    <td><select class="b-owner">${sel(B_OWNERS, r.owner||'我們的')}</select></td>
+    <td><button class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove();updBatchCount()">✕</button></td></tr>`;
+}
+function openBatch() {
+  document.getElementById('b-paste').value = '';
+  document.getElementById('b-body').innerHTML = Array.from({length:5}, () => batchRowHtml()).join('');
+  updBatchCount(); openModal('modal-batch');
+}
+function addBatchRow() { document.getElementById('b-body').insertAdjacentHTML('beforeend', batchRowHtml()); updBatchCount(); }
+function updBatchCount() {
+  const n = [...document.querySelectorAll('#b-body tr')].filter(tr => tr.querySelector('.b-model').value.trim()).length;
+  document.getElementById('b-count').textContent = `共 ${n} 筆有型號`;
+}
+function normDate(t) {
+  t = (t||'').trim(); if (!t) return new Date().toISOString().slice(0,10);
+  const m = t.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+  return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : new Date().toISOString().slice(0,10);
+}
+function parseBatchPaste() {
+  const t = document.getElementById('b-paste').value.trim(); if (!t) return;
+  const rows = t.split(/\r?\n/).map(l => l.split('\t')).filter(c => (c[1]||'').trim());
+  document.getElementById('b-body').innerHTML = rows.map(c => {
+    const own = (c[5]||'').trim();
+    return batchRowHtml({date:(c[0]||'').trim(), model:(c[1]||'').trim(), serial:(c[2]||'').trim(), issue:(c[3]||'').trim(),
+      shop: B_SHOPS.find(x => (c[4]||'').includes(x) || (x==='明豐' && (c[4]||'').includes('明峰'))) || '明豐',
+      owner: B_OWNERS.find(x => own.includes(x.replace('的',''))) || '我們的'});
+  }).join('');
+  updBatchCount();
+}
+async function saveBatch() {
+  const list = [...document.querySelectorAll('#b-body tr')].map((tr, i) => {
+    const g = c => tr.querySelector(c).value.trim();
+    const ot = g('.b-owner');
+    return { id: Date.now().toString() + i, date: normDate(g('.b-date')), model: g('.b-model'), serial: g('.b-serial'), issue: g('.b-issue'),
+      parts: '沒配件', owner: (ot==='我們的'||ot==='保固免費') ? '我們的' : '客人的',
+      ownerType: (ot==='我們的'||ot==='客人的') ? '' : ot, shop: g('.b-shop'), status: '送件', refno: '',
+      charge: ot==='保固免費' ? 0 : null, cost: null, purchaseCost: null, warranty: ot==='保固免費', contact: '', note: '', photos: [],
+      timeline: [{time: nowStr(), text: '批次新增'}] };
+  }).filter(o => o.model);
+  if (!list.length) { alert('至少要填一筆型號'); return; }
+  orders = [...list, ...orders]; save();
+  closeModal('modal-batch'); updateStats(); filterOrders();
+  setStatus('⏳ 批次寫入試算表…');
+  const r = await gsCall({ action: 'saveMany', orders: list });
+  setStatus(r && r.ok ? `✅ 已新增 ${list.length} 筆` : '⚠️ 試算表寫入失敗，請確認 Apps Script 已更新');
+}
 
 // ── Report ────────────────────────────────────────────────
 function changeMonth(d) {
