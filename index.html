@@ -653,6 +653,7 @@ th.sortable:hover{color:var(--text)}
       </div>
       <div id="q-w-note" style="display:none;margin-top:8px;font-size:13px;color:var(--teal)">🛡 保固：收費固定 $0，只填維修成本</div>
     </div>
+    <div class="field full" style="margin-top:10px"><label>維修進度說明</label><textarea id="q-note" class="note-area" style="min-height:100px" placeholder="跟廠商追到的進度…"></textarea></div>
 
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-quick')">取消</button><button class="btn btn-primary" onclick="saveQuick()">儲存</button></div>
   </div>
@@ -1052,7 +1053,7 @@ function renderTable(list) {
       <td>${ownerHtml(o)}</td>
       <td>${shopHtml(o.shop)}</td>
       <td onclick="event.stopPropagation();openQuick('${o.id}')" style="cursor:pointer" title="點一下快速改狀態">${progressHtml(o.status)}</td>
-      <td onclick="event.stopPropagation();openNote('${o.id}')" style="cursor:pointer" title="點一下填寫維修進度"><span class="${o.note?'has-note':''}">${daysHtml}</span></td>
+      <td onclick="event.stopPropagation();openQuick('${o.id}')" style="cursor:pointer" title="點一下編輯狀態／維修進度"><span class="${o.note?'has-note':''}">${daysHtml}</span></td>
       <td>${chargeHtml}</td>
       <td class="hidden-cost">${fmtM(o.cost)}</td>
       <td class="${profit.cls}">${profit.display}</td>
@@ -1262,6 +1263,43 @@ async function saveOrder() {
 }
 
 
+
+// ── Quick edit (狀態 / 天數 共用) ─────────────────────────
+let quickId = null, quickStatus = '送件';
+function openQuick(id) {
+  const o = orders.find(x => x.id === id); if (!o) return;
+  quickId = id; quickStatus = o.status === '取消' ? '取消' : o.status;
+  document.getElementById('q-title').textContent = `${o.model}（${o.serial}）`;
+  document.getElementById('q-price').value = o.charge ?? '';
+  document.getElementById('q-cost').value = o.cost ?? '';
+  document.getElementById('q-note').value = o.note || '';
+  renderQuick(); openModal('modal-quick');
+  setTimeout(() => document.getElementById('q-note').focus(), 50);
+}
+function renderQuick() {
+  const items = [['送件','送修'],['報修','報價'],['完成','完成'],['取消','取消']];
+  document.getElementById('q-btns').innerHTML = items.map(([v,l]) =>
+    `<button class="btn ${quickStatus===v?'btn-primary':'btn-ghost'}" style="flex:1" onclick="quickStatus='${v}';renderQuick()">${l}</button>`).join('');
+  const o = orders.find(x => x.id === quickId), isW = o && (o.warranty || o.ownerType === '保固免費');
+  document.getElementById('q-charge-field').style.display = (isW || quickStatus === '送件') ? 'none' : '';
+  document.getElementById('q-w-note').style.display = isW ? '' : 'none';
+}
+async function saveQuick() {
+  const o = orders.find(x => x.id === quickId); if (!o) return;
+  const isW = o.warranty || o.ownerType === '保固免費';
+  const v = document.getElementById('q-price').value;
+  if (quickStatus === '報修' && !isW && v === '') { alert('請輸入報價金額'); return; }
+  const old = o.status;
+  o.status = quickStatus;
+  if (quickStatus === '送件') o.charge = isW ? 0 : null;
+  else if (!isW && v !== '') o.charge = parseFloat(v);
+  const cv = document.getElementById('q-cost').value;
+  o.cost = cv !== '' ? parseFloat(cv) : null;
+  o.note = document.getElementById('q-note').value.trim();
+  o.timeline = [...(o.timeline||[]), {time: nowStr(), text: old !== o.status ? `狀態更新：${STATUS_LABEL[o.status]}` + (o.charge ? ` $${o.charge}` : '') : '資料更新'}];
+  save(); closeModal('modal-quick'); updateStats(); filterOrders();
+  await pushToGS(o);
+}
 
 // ── Progress note ─────────────────────────────────────────
 let openNoteId = null;
