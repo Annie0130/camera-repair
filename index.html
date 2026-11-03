@@ -538,6 +538,7 @@ th.sortable:hover{color:var(--text)}
           <option value="客人的">客人的</option>
           <option value="親朋好友的">親朋好友的</option>
         </select>
+        <button class="btn btn-ghost" id="btn-clear-filter" style="display:none" onclick="clearFilters()">✕ 清除篩選</button>
         <div class="spacer"></div>
         <button class="btn btn-ghost" onclick="openShopInfo()">📦 寄送資訊</button>
         <button class="btn btn-ghost" id="btn-copy-sel" onclick="copySelected()">📄 複製選取（0）</button>
@@ -969,6 +970,21 @@ function progressHtmlOld(status) {
 
 // ── Alerts ────────────────────────────────────────────────
 const alertOpen = {q:false, r:false};
+function toggleAlertFilter(v) {
+  const el = document.getElementById('filter-status');
+  el.value = el.value === v ? '' : v;
+  if (el.value === v) { curTab !== 'active' && setTab('active'); }
+  filterOrders();
+}
+function clearFilters() {
+  ['filter-shop','filter-status','filter-owner'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  const g = document.getElementById('global-search'); if (g) g.value = '';
+  filterOrders();
+}
+function updClearBtn() {
+  const on = ['filter-shop','filter-status','filter-owner','global-search'].some(id => { const e = document.getElementById(id); return e && e.value; });
+  const b = document.getElementById('btn-clear-filter'); if (b) b.style.display = on ? '' : 'none';
+}
 function alertCard(kind, list, days) {
   const isQ = kind === 'q';
   const sorted = [...list].sort((a,b) => daysSince(b.date) - daysSince(a.date));
@@ -978,7 +994,7 @@ function alertCard(kind, list, days) {
       <span class="al-title">${isQ?'⏰ 送件逾時':'🔧 報修逾時'}</span>
       <span class="al-count">${list.length} 件</span>
       <span class="al-sub">超過 ${days} 天${isQ?'尚未回報':'仍在報修'}</span>
-      <button class="btn btn-ghost btn-sm al-filter" onclick="event.preventDefault();event.stopPropagation();document.getElementById('filter-status').value='${isQ?'od-q':'od-r'}';filterOrders()">只看這些</button>
+      <button class="btn btn-ghost btn-sm al-filter" onclick="event.preventDefault();event.stopPropagation();toggleAlertFilter('${isQ?'od-q':'od-r'}')">${document.getElementById('filter-status') && document.getElementById('filter-status').value === (isQ?'od-q':'od-r') ? '✕ 顯示全部' : '只看這些'}</button>
     </summary>
     <div class="al-chips">${chips}</div>
   </details>`;
@@ -1032,6 +1048,7 @@ function filterOrders() {
   const shop = document.getElementById('filter-shop').value;
   const status = document.getElementById('filter-status').value;
   const owner = document.getElementById('filter-owner').value;
+  updClearBtn(); updateAlerts();
   const nA = orders.filter(isActive).length;
   const ea = document.getElementById('tab-n-active'), ed = document.getElementById('tab-n-done');
   if (ea) ea.textContent = nA; if (ed) ed.textContent = orders.length - nA;
