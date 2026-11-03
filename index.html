@@ -543,6 +543,7 @@ th.sortable:hover{color:var(--text)}
           <option value="客人的">客人的</option>
           <option value="親朋好友的">親朋好友的</option>
         </select>
+        <button class="btn btn-ghost" id="btn-today" onclick="toggleToday()">📅 今天新增</button>
         <button class="btn btn-ghost" id="btn-clear-filter" style="display:none" onclick="clearFilters()">✕ 清除篩選</button>
         <div class="spacer"></div>
         <button class="btn btn-ghost" onclick="openShopInfo()">📦 寄送資訊</button>
@@ -1020,13 +1021,21 @@ function toggleAlertFilter(v) {
   if (el.value === v) { curTab !== 'active' && setTab('active'); }
   filterOrders();
 }
+let todayOnly = false;
+function dayKey(d) {
+  const dt = new Date(d); if (isNaN(dt)) return '';
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+function todayKey() { return dayKey(new Date()); }
+function toggleToday() { todayOnly = !todayOnly; filterOrders(); }
 function clearFilters() {
+  todayOnly = false;
   ['filter-shop','filter-status','filter-owner'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   const g = document.getElementById('global-search'); if (g) g.value = '';
   filterOrders();
 }
 function updClearBtn() {
-  const on = ['filter-shop','filter-status','filter-owner','global-search'].some(id => { const e = document.getElementById(id); return e && e.value; });
+  const on = todayOnly || ['filter-shop','filter-status','filter-owner','global-search'].some(id => { const e = document.getElementById(id); return e && e.value; });
   const b = document.getElementById('btn-clear-filter'); if (b) b.style.display = on ? '' : 'none';
 }
 function alertCard(kind, list, days) {
@@ -1092,12 +1101,19 @@ function filterOrders() {
   const shop = document.getElementById('filter-shop').value;
   const status = document.getElementById('filter-status').value;
   const owner = document.getElementById('filter-owner').value;
+  const tb = document.getElementById('btn-today');
+  if (tb) {
+    const n = orders.filter(o => dayKey(o.date) === todayKey()).length;
+    tb.textContent = `📅 今天新增（${n}）`;
+    tb.className = 'btn ' + (todayOnly ? 'btn-primary' : 'btn-ghost');
+  }
   updClearBtn(); updateAlerts();
   const nA = orders.filter(isActive).length;
   const ea = document.getElementById('tab-n-active'), ed = document.getElementById('tab-n-done');
   if (ea) ea.textContent = nA; if (ed) ed.textContent = orders.length - nA;
   const filtered = orders.filter(o => {
-    if (curTab === 'active' ? !isActive(o) : isActive(o)) return false;
+    if (todayOnly) { if (dayKey(o.date) !== todayKey()) return false; }
+    else if (curTab === 'active' ? !isActive(o) : isActive(o)) return false;
     if (shop && o.shop !== shop) return false;
     if (status === 'od-q') { if (!isOverdueQuote(o)) return false; }
     else if (status === 'od-r') { if (!isOverdueRepair(o)) return false; }
