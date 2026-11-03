@@ -491,6 +491,11 @@ th.sortable:hover{color:var(--text)}
     <!-- Orders -->
     <div id="page-orders" class="page active">
 
+      <div id="sync-warn" class="alert alert-repair" style="display:none;margin-bottom:12px;align-items:center">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-body"><b>有 <span id="sync-warn-n">0</span> 筆資料還沒寫進 Google 試算表</b>（目前只存在這台電腦，先不要清除瀏覽器資料）</div>
+        <button class="btn btn-primary btn-sm" onclick="retrySync()">重試同步</button>
+      </div>
       <div class="alert-section" id="alert-section"></div>
 
       <div class="stats-grid">
@@ -871,11 +876,45 @@ async function gsCall(body) {
   }
 }
 
+// ── 尚未寫進試算表的資料（寫入失敗時保留，不會被重新載入蓋掉）──
+let pendingIds = new Set();
+try { pendingIds = new Set(JSON.parse(localStorage.getItem('repair_pending_ids') || '[]')); } catch (e) {}
+function updateSyncWarn() {
+  const el = document.getElementById('sync-warn'); if (!el) return;
+  el.style.display = pendingIds.size ? '' : 'none';
+  const t = document.getElementById('sync-warn-n'); if (t) t.textContent = pendingIds.size;
+}
+function savePending() {
+  try { localStorage.setItem('repair_pending_ids', JSON.stringify([...pendingIds])); } catch (e) {}
+  updateSyncWarn();
+}
+function markPending(ids) { ids.forEach(i => pendingIds.add(i)); savePending(); }
+function clearPending(ids) { ids.forEach(i => pendingIds.delete(i)); savePending(); }
+let retrying = false;
+async function retrySync() {
+  if (retrying || !pendingIds.size) return;
+  retrying = true; setStatus('⏳ 重新寫入試算表…');
+  let ok = 0, fail = 0;
+  for (const id of [...pendingIds]) {
+    const o = orders.find(x => x.id === id);
+    if (!o) { pendingIds.delete(id); continue; }
+    const r = await gsCall({ action: 'save', order: o });
+    if (r && r.ok) { pendingIds.delete(id); ok++; } else fail++;
+  }
+  savePending(); retrying = false;
+  setStatus(fail ? `⚠️ 還有 ${fail} 筆沒寫進試算表` : `✅ 已同步 ${ok} 筆到試算表`);
+}
+
 async function loadFromGS() {
   setStatus('📊 從 Google Sheets 載入中…');
   const data = await gsCall({ action: 'getAll' });
   if (data && data.orders) {
-    orders = data.orders;
+    const remote = data.orders, rIds = new Set(remote.map(o => o.id));
+    const pend = orders.filter(o => pendingIds.has(o.id));
+    const pMap = new Map(pend.map(o => [o.id, o]));
+    orders = [...pend.filter(o => !rIds.has(o.id)), ...remote.map(o => pMap.get(o.id) || o)];
+    updateSyncWarn();
+    if (pendingIds.size) setTimeout(retrySync, 500);
     localStorage.setItem('repair_orders_v2', JSON.stringify(orders));
     gsConnected = true;
     setStatus('✅ 已連線 Google Sheets');
@@ -887,7 +926,12 @@ async function loadFromGS() {
 }
 
 async function pushToGS(order) {
-  await gsCall({ action: 'save', order });
+  const r = await gsCall({ action: 'save', order });
+  if (r && r.ok) clearPending([order.id]);
+  else {
+    markPending([order.id]);
+    alert('⚠️ 這筆資料沒有寫進 Google 試算表，先保留在這台電腦上。請稍後按頁面上方的「重試同步」。');
+  }
 }
 
 async function deleteFromGS(id) {
@@ -1218,6 +1262,7 @@ function editOrder() {
 async function deleteOrder() {
   if (!confirm('確定要刪除這筆維修單？')) return;
   const id = viewingId;
+  clearPending([id]);
   closeModal('modal-detail');
   setStatus('⏳ 從試算表刪除中…');
   const res = await deleteFromGS(id);
@@ -1492,7 +1537,12 @@ async function saveBatch() {
   closeModal('modal-batch'); updateStats(); filterOrders();
   setStatus('⏳ 批次寫入試算表…');
   const r = await gsCall({ action: 'saveMany', orders: list });
-  setStatus(r && r.ok ? `✅ 已新增 ${list.length} 筆` : '⚠️ 試算表寫入失敗，請確認 Apps Script 已更新');
+  if (r && r.ok) setStatus(`✅ 已新增 ${list.length} 筆`);
+  else {
+    markPending(list.map(o => o.id));
+    setStatus('⚠️ 試算表寫入失敗，資料先保留在這台電腦');
+    alert(`⚠️ 這 ${list.length} 筆沒有寫進 Google 試算表，已先保留在這台電腦上，不會不見。\n請稍後按頁面上方的「重試同步」。`);
+  }
 }
 
 // ── Report ────────────────────────────────────────────────
@@ -1804,6 +1854,7 @@ function printQuote() {
 
 (async () => {
   // 先用 localStorage 快速顯示
+  updateSyncWarn();
   updateStats();
   filterOrders();
   // 再從 Google Sheets 拉最新資料
