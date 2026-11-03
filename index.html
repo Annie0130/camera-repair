@@ -526,6 +526,7 @@ th.sortable:hover{color:var(--text)}
           <option value="親朋好友的">親朋好友的</option>
         </select>
         <div class="spacer"></div>
+        <button class="btn btn-ghost" id="btn-copy-sel" onclick="copySelected()">📄 複製選取（0）</button>
         <button class="btn btn-ghost" onclick="openBatch()">📋 批次新增</button>
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增維修單</button>
       </div>
@@ -534,6 +535,7 @@ th.sortable:hover{color:var(--text)}
         <table>
           <thead>
             <tr>
+              <th style="width:28px"><input type="checkbox" id="sel-all" title="全選／取消全選（目前篩選結果）" onclick="toggleSelAll(this.checked)"></th>
               <th class="sortable" data-k="date" onclick="setSort('date')">日期<span class="sort-ind"></span></th>
               <th class="sortable" data-k="model" onclick="setSort('model')">型號<span class="sort-ind"></span></th>
               <th class="sortable" data-k="serial" onclick="setSort('serial')">機身碼<span class="sort-ind"></span></th>
@@ -862,7 +864,7 @@ async function pushToGS(order) {
 }
 
 async function deleteFromGS(id) {
-  await gsCall({ action: 'delete', id });
+  return await gsCall({ action: 'delete', id });
 }
 
 function setStatus(msg) {
@@ -1036,9 +1038,28 @@ function filterOrders() {
   renderTable(filtered);
 }
 
+let selIds = new Set(), lastList = [];
+function updSelUi() {
+  const b = document.getElementById('btn-copy-sel'); if (b) b.textContent = `📄 複製選取（${selIds.size}）`;
+  const a = document.getElementById('sel-all');
+  if (a) { const n = lastList.filter(o => selIds.has(o.id)).length; a.checked = lastList.length>0 && n===lastList.length; a.indeterminate = n>0 && n<lastList.length; }
+}
+function toggleSel(id, on) { on ? selIds.add(id) : selIds.delete(id); updSelUi(); }
+function toggleSelAll(on) { lastList.forEach(o => on ? selIds.add(o.id) : selIds.delete(o.id)); filterOrders(); }
+async function copySelected() {
+  const list = orders.filter(o => selIds.has(o.id));
+  if (!list.length) { setStatus('請先勾選要複製的維修單'); return; }
+  const c = v => String(v||'').replace(/[\t\r\n]+/g, ' ').trim();
+  const text = list.map(o => [c(o.model), c(o.serial), c(o.issue), ownerLabel(o)].join('\t')).join('\n');
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) {} ta.remove(); }
+  setStatus(`✅ 已複製 ${list.length} 筆（型號、機身碼、問題、性質）`);
+}
 function renderTable(list) {
+  lastList = list;
   const tbody = document.getElementById('orders-tbody');
-  if (!list.length) { tbody.innerHTML = `<tr><td colspan="10"><div class="empty">沒有符合的維修單</div></td></tr>`; return; }
+  if (!list.length) { tbody.innerHTML = `<tr><td colspan="11"><div class="empty">沒有符合的維修單</div></td></tr>`; return; }
   tbody.innerHTML = list.map(o => {
     const days = daysSince(o.date);
     const oq = isOverdueQuote(o), or_ = isOverdueRepair(o);
@@ -1053,8 +1074,9 @@ function renderTable(list) {
     const chargeHtml = isWarranty
       ? `<span class="badge b-ship" style="font-size:11px">保固 $0</span>`
       : (o.charge!==null ? `<span style="font-weight:600;color:var(--green)">${fmtM(o.charge)}</span>` : `<span class="hidden-cost">—</span>`);
-    const noteRow = openNoteId === o.id ? `<tr class="note-row"><td colspan="10" onclick="event.stopPropagation()"><div style="display:flex;gap:10px;align-items:flex-start"><textarea id="n-inline" placeholder="維修進度說明（跟廠商追進度用）…">${(o.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea><div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary btn-sm" onclick="saveNote()">儲存</button><button class="btn btn-ghost btn-sm" onclick="openNoteId=null;filterOrders()">取消</button></div></div></td></tr>` : '';
+    const noteRow = openNoteId === o.id ? `<tr class="note-row"><td colspan="11" onclick="event.stopPropagation()"><div style="display:flex;gap:10px;align-items:flex-start"><textarea id="n-inline" placeholder="維修進度說明（跟廠商追進度用）…">${(o.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea><div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary btn-sm" onclick="saveNote()">儲存</button><button class="btn btn-ghost btn-sm" onclick="openNoteId=null;filterOrders()">取消</button></div></div></td></tr>` : '';
     return `<tr class="${rowCls}" onclick="openDetail('${o.id}')">
+      <td onclick="event.stopPropagation()" style="width:28px"><input type="checkbox" class="row-sel" ${selIds.has(o.id)?'checked':''} onchange="toggleSel('${o.id}',this.checked)"></td>
       <td style="color:var(--text3);white-space:nowrap">${fmtDate(o.date)}</td>
       <td class="bold ${repeatCount(o)>1?'repeat-name':''}">${o.model}${repeatCount(o)>1?`<span class="repeat-chip">🔁 第${repeatCount(o)}次送修</span>`:''}</td>
       <td class="mono">${o.serial}</td>
@@ -1069,6 +1091,7 @@ function renderTable(list) {
     </tr>${noteRow}`;
   }).join('');
   const ta = document.getElementById('n-inline'); if (ta) ta.focus();
+  updSelUi();
 }
 
 // ── Detail Progress Visual ────────────────────────────────
@@ -1155,11 +1178,20 @@ function editOrder() {
   openModal('modal-add');
 }
 
-function deleteOrder() {
+async function deleteOrder() {
   if (!confirm('確定要刪除這筆維修單？')) return;
-  deleteFromGS(viewingId);
-  orders = orders.filter(o => o.id !== viewingId);
-  save(); closeModal('modal-detail'); updateStats(); filterOrders();
+  const id = viewingId;
+  closeModal('modal-detail');
+  setStatus('⏳ 從試算表刪除中…');
+  const res = await deleteFromGS(id);
+  if (res && res.ok) {
+    // 刪除成功後重新從試算表載入，確保畫面和試算表一致（避免重複或殘留）
+    await loadFromGS();
+  } else {
+    setStatus('⚠️ 試算表刪除失敗，這筆沒有刪掉，請稍後再試');
+    alert('試算表刪除失敗，這筆資料沒有被刪除。請確認網路後再試一次。');
+  }
+  save(); updateStats(); filterOrders();
 }
 
 // ── Photos ────────────────────────────────────────────────
@@ -1393,7 +1425,7 @@ function parseBatchPaste() {
 async function copyBatchText() {
   const lines = [...document.querySelectorAll('#b-body tr')].map(tr => {
     const g = c => tr.querySelector(c).value.trim();
-    return [g('.b-date'), g('.b-model'), g('.b-serial'), g('.b-issue'), g('.b-parts'), g('.b-shop'), g('.b-owner'), g('.b-pcost'), g('.b-contact')].join('\t');
+    return [g('.b-date'), g('.b-model'), g('.b-serial'), g('.b-issue'), g('.b-owner'), g('.b-pcost')].join('\t');
   }).filter(l => l.split('\t')[1]);
   const msg = document.getElementById('b-copy-msg');
   if (!lines.length) { msg.style.color = 'var(--red)'; msg.textContent = '還沒有資料可複製'; return; }
