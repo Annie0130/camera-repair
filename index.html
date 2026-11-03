@@ -1464,7 +1464,7 @@ async function copyBatchText() {
   const lines = [...document.querySelectorAll('#b-body tr')].map(tr => {
     const g = c => tr.querySelector(c).value.trim();
     if (!g('.b-model')) return '';
-    return [g('.b-model'), g('.b-serial'), g('.b-issue'), g('.b-owner'), g('.b-refno'), g('.b-pcost')].filter(x => x !== '').map(x => x.replace(/\s+/g, ' ')).join(' ');
+    return [g('.b-model'), g('.b-serial'), g('.b-issue'), g('.b-owner'), g('.b-refno')].filter(x => x !== '').map(x => x.replace(/\s+/g, ' ')).join(' ');
   }).filter((l, i) => l);
   const msg = document.getElementById('b-copy-msg');
   if (!lines.length) { msg.style.color = 'var(--red)'; msg.textContent = '還沒有資料可複製'; return; }
