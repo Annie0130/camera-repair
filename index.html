@@ -97,7 +97,20 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
 .page{display:none}.page.active{display:block}
 
 /* ── Alerts ── */
-.alert-section{margin-bottom:16px;display:flex;flex-direction:column;gap:8px}
+.alert-section{margin-bottom:12px;display:flex;flex-direction:row;flex-wrap:wrap;gap:8px}
+.alert-card{flex:1 1 320px;border:1px solid;border-radius:var(--radius);font-size:13px;padding:0}
+.alert-card summary{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;list-style:none}
+.alert-card summary::-webkit-details-marker{display:none}
+.alert-card summary::after{content:'▾';margin-left:4px;opacity:.6}
+.alert-card[open] summary::after{content:'▴'}
+.al-title{font-weight:700}
+.al-count{background:rgba(0,0,0,.08);border-radius:10px;padding:1px 8px;font-weight:700}
+.al-sub{font-size:12px;opacity:.75;flex:1}
+.al-filter{padding:2px 8px!important;font-size:12px!important}
+.al-chips{display:flex;flex-wrap:wrap;gap:6px;padding:2px 12px 10px;max-height:150px;overflow:auto}
+.al-chip{background:rgba(255,255,255,.7);border:1px solid rgba(0,0,0,.1);border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;white-space:nowrap}
+.al-chip b{margin-left:6px;opacity:.8}
+.al-chip:hover{background:#fff}
 .alert{
   display:flex;align-items:flex-start;gap:10px;padding:11px 14px;
   border-radius:var(--radius);border:1px solid;font-size:13px;
@@ -955,6 +968,21 @@ function progressHtmlOld(status) {
 }
 
 // ── Alerts ────────────────────────────────────────────────
+const alertOpen = {q:false, r:false};
+function alertCard(kind, list, days) {
+  const isQ = kind === 'q';
+  const sorted = [...list].sort((a,b) => daysSince(b.date) - daysSince(a.date));
+  const chips = sorted.map(o => `<span class="al-chip" onclick="openDetail('${o.id}')" title="${(o.issue||'').replace(/"/g,'&quot;')}">${o.model}<b>${daysSince(o.date)}天</b></span>`).join('');
+  return `<details class="alert-card ${isQ?'alert-quote':'alert-repair'}" ${alertOpen[kind]?'open':''} ontoggle="alertOpen['${kind}']=this.open">
+    <summary>
+      <span class="al-title">${isQ?'⏰ 送件逾時':'🔧 報修逾時'}</span>
+      <span class="al-count">${list.length} 件</span>
+      <span class="al-sub">超過 ${days} 天${isQ?'尚未回報':'仍在報修'}</span>
+      <button class="btn btn-ghost btn-sm al-filter" onclick="event.preventDefault();event.stopPropagation();document.getElementById('filter-status').value='${isQ?'od-q':'od-r'}';filterOrders()">只看這些</button>
+    </summary>
+    <div class="al-chips">${chips}</div>
+  </details>`;
+}
 function updateAlerts() {
   const qList = orders.filter(isOverdueQuote);
   const rList = orders.filter(isOverdueRepair);
@@ -963,28 +991,7 @@ function updateAlerts() {
   const badge = document.getElementById('overdue-badge');
   badge.textContent = total;
   badge.style.display = total > 0 ? '' : 'none';
-  let html = '';
-  if (qList.length > 0) {
-    const items = qList.map(o=>`${o.model}（${daysSince(o.date)}天）`).join('、');
-    html += `<div class="alert alert-quote">
-      <span class="alert-icon">⏰</span>
-      <div class="alert-body">
-        <div class="alert-title">送件逾時 — 超過 ${ALERT_QUOTE_DAYS} 天尚未回報（${qList.length} 件）</div>
-        <div class="alert-items">${items}</div>
-      </div>
-    </div>`;
-  }
-  if (rList.length > 0) {
-    const items = rList.map(o=>`${o.model}（${daysSince(o.date)}天）`).join('、');
-    html += `<div class="alert alert-repair">
-      <span class="alert-icon">🔧</span>
-      <div class="alert-body">
-        <div class="alert-title">報修逾時 — 超過 ${ALERT_REPAIR_DAYS} 天仍在報修（${rList.length} 件）</div>
-        <div class="alert-items">${items}</div>
-      </div>
-    </div>`;
-  }
-  el.innerHTML = html;
+  el.innerHTML = (qList.length ? alertCard('q', qList, ALERT_QUOTE_DAYS) : '') + (rList.length ? alertCard('r', rList, ALERT_REPAIR_DAYS) : '');
 }
 
 // ── Stats ─────────────────────────────────────────────────
