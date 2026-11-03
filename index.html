@@ -526,6 +526,7 @@ th.sortable:hover{color:var(--text)}
           <option value="親朋好友的">親朋好友的</option>
         </select>
         <div class="spacer"></div>
+        <button class="btn btn-ghost" onclick="openShopInfo()">📦 寄送資訊</button>
         <button class="btn btn-ghost" id="btn-copy-sel" onclick="copySelected()">📄 複製選取（0）</button>
         <button class="btn btn-ghost" onclick="openBatch()">📋 批次新增</button>
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增維修單</button>
@@ -668,11 +669,23 @@ th.sortable:hover{color:var(--text)}
   </div>
 </div>
 
+<!-- Shop info modal -->
+<div class="overlay" id="modal-shopinfo">
+  <div class="modal" style="width:560px">
+    <div class="modal-hd"><div class="modal-title">📦 維修店寄送資訊</div><button class="modal-close" onclick="closeModal('modal-shopinfo')">✕</button></div>
+    <div id="shopinfo-body"></div>
+    <div style="margin-top:14px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:13px;line-height:1.8;color:var(--text2)">
+      <b>分配原則</b><br>發霉或是很奇怪的：明豐<br>客人的有時間壓力的：米奇<br>其他就看當下兩間的量去分配
+    </div>
+    <span id="shopinfo-msg" style="font-size:12px;color:var(--green)"></span>
+  </div>
+</div>
+
 <!-- Batch modal -->
 <div class="overlay" id="modal-batch">
   <div class="modal" style="width:1140px">
     <div class="modal-hd"><div class="modal-title">批次新增維修單</div><button class="modal-close" onclick="closeModal('modal-batch')">✕</button></div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">可以直接從試算表複製多列貼到下面（欄位順序：日期、型號、機身碼、問題、配件、維修店、性質、收購成本），或在表格裡逐列填。日期留空＝今天。</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">可以直接從試算表複製多列貼到下面（欄位順序：日期、型號、機身碼、問題、配件、維修店、性質、收購成本、客人資訊、維修單號），或在表格裡逐列填。日期留空＝今天。</div>
     <textarea id="b-paste" placeholder="貼上試算表內容…" style="width:100%;height:70px;margin-bottom:8px" oninput="parseBatchPaste()"></textarea>
     <div style="overflow-x:auto"><table id="b-table" style="min-width:1440px"><thead><tr><th>日期</th><th>型號</th><th>機身碼</th><th>問題</th><th>配件</th><th>維修店</th><th>性質</th><th>收購成本 🔒</th><th>客人資訊</th><th>維修單號</th><th></th></tr></thead><tbody id="b-body"></tbody></table></div>
     <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addBatchRow()">＋ 加一列</button>
@@ -1614,6 +1627,33 @@ function showPage(name, el) {
     document.getElementById('s-quote-days').value=QUOTE_DAYS;
     document.getElementById('s-warranty-text').value=WARRANTY_TEXT;
   }
+}
+const SHOP_INFO = [
+  {name:'明豐相機', phone:'0921590802', addr:'高雄市鹽埕區五福四路212號'},
+  {name:'米奇相機維修', phone:'04-24375282', addr:'台中市北屯區景賢南二路333號'}
+];
+function openShopInfo() {
+  document.getElementById('shopinfo-msg').textContent = '';
+  document.getElementById('shopinfo-body').innerHTML = SHOP_INFO.map((s, i) => `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-weight:700;margin-bottom:6px">${s.name}</div>
+      <div style="font-size:14px;line-height:1.9">☎ ${s.phone}<br>📍 ${s.addr}</div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="copyShopInfo(${i},'all')">複製全部</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyShopInfo(${i},'phone')">複製電話</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyShopInfo(${i},'addr')">複製地址</button>
+      </div>
+    </div>`).join('');
+  openModal('modal-shopinfo');
+}
+async function copyShopInfo(i, part) {
+  const s = SHOP_INFO[i];
+  const text = part === 'phone' ? s.phone : part === 'addr' ? s.addr : `${s.name}\n${s.phone}\n${s.addr}`;
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) {} ta.remove(); }
+  const m = document.getElementById('shopinfo-msg'); m.textContent = '已複製';
+  setTimeout(() => { m.textContent = ''; }, 2000);
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
