@@ -216,6 +216,7 @@ tbody tr.row-overdue-repair td:first-child{border-left:4px solid var(--red)}
 .shop-mf{background:#eff6ff;color:#1e40af}
 .shop-mq{background:var(--purple-bg);color:var(--purple)}
 .shop-orig{background:var(--amber-bg);color:#92400e}
+.shop-yc{background:#ccf0ef;color:#0f5f5b}
 
 .overdue-chip{
   display:inline-flex;align-items:center;gap:4px;
@@ -524,7 +525,7 @@ th.sortable:hover{color:var(--text)}
       <div class="toolbar">
         <select class="filter-select" id="filter-shop" onchange="filterOrders()">
           <option value="">全部店家</option>
-          <option>明豐</option><option>米奇</option><option>原廠</option>
+          <option>明豐</option><option>米奇</option><option>原廠</option><option>益昌</option>
         </select>
         <div class="tab-group" id="tab-group">
           <button class="tab-btn active" data-tab="active" onclick="setTab('active')">進行中 <span id="tab-n-active"></span></button>
@@ -695,7 +696,7 @@ th.sortable:hover{color:var(--text)}
     <div class="modal-hd"><div class="modal-title">📦 維修店寄送資訊</div><button class="modal-close" onclick="closeModal('modal-shopinfo')">✕</button></div>
     <div id="shopinfo-body"></div>
     <div style="margin-top:14px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:13px;line-height:1.8;color:var(--text2)">
-      <b>分配原則</b><br>發霉或是很奇怪的：明豐<br>客人的有時間壓力的：米奇<br>其他就看當下兩間的量去分配
+      <b>分配原則</b><br>發霉或是很奇怪的：明豐<br>客人的有時間壓力的：米奇<br>其他就看當下兩間的量去分配<br>益昌：候選店，試送中，送修一樣要建檔
     </div>
     <span id="shopinfo-msg" style="font-size:12px;color:var(--green)"></span>
   </div>
@@ -753,7 +754,7 @@ th.sortable:hover{color:var(--text)}
     <div class="fsec">
       <div class="fsec-title">維修資訊</div>
       <div class="fgrid">
-        <div class="field"><label>送修店家</label><select id="f-shop"><option>明豐</option><option>米奇</option><option>原廠</option></select></div>
+        <div class="field"><label>送修店家</label><select id="f-shop"><option>明豐</option><option>米奇</option><option>原廠</option><option>益昌</option></select></div>
         <div class="field"><label>進度狀態</label>
           <select id="f-status">
             <option>送件</option><option>報修</option><option>完成</option><option value="取消">不維修</option>
@@ -986,7 +987,7 @@ function calcProfit(o) {
   return { val:p, display:(p>=0?'+':'')+fmtM(Math.abs(p)), cls: p>=0?'profit-pos':'profit-neg' };
 }
 function shopHtml(s) {
-  const cls = s==='明豐'?'shop-mf':s==='米奇'?'shop-mq':'shop-orig';
+  const cls = s==='明豐'?'shop-mf':s==='米奇'?'shop-mq':s==='益昌'?'shop-yc':'shop-orig';
   return `<span class="shop-tag ${cls}">${s}</span>`;
 }
 function badgeHtml(s) { return `<span class="badge ${STATUS_CLASS[s]||'b-cancel'}">${STATUS_LABEL[s]||s}</span>`; }
@@ -1453,7 +1454,7 @@ async function saveNote() {
 // ── Batch add ─────────────────────────────────────────────
 const B_OWNERS = ['我們（未入庫）','我們（已入庫）','客人（保固內）','客人（代送修）','親朋好友的'];
 const B_OWN_TYPE = {'我們（未入庫）':'未入庫','我們（已入庫）':'已入庫','客人（保固內）':'保固免費','客人（代送修）':'代送修','親朋好友的':'親朋好友'};
-const B_SHOPS = ['明豐','米奇','原廠'];
+const B_SHOPS = ['明豐','米奇','原廠','益昌'];
 const B_PARTS = ['沒配件','前架子','後架子'];
 function batchRowHtml(r) {
   r = r || {};
@@ -1643,7 +1644,7 @@ function renderReport() {
   document.getElementById('warranty-detail-section').innerHTML = warrantyDetail;
   document.getElementById('inventory-detail-section').innerHTML = inventoryDetail;
 
-  const SHOPS=['明豐','米奇','原廠'];
+  const SHOPS=['明豐','米奇','原廠','益昌'];
   document.getElementById('shop-report').innerHTML=SHOPS.map(shop=>{
     const items=mo.filter(o=>o.shop===shop);
     let income=0,cost=0,wCost=0;
@@ -1721,7 +1722,8 @@ function showPage(name, el) {
 }
 const SHOP_INFO = [
   {name:'明豐相機', phone:'0921590802', addr:'高雄市鹽埕區五福四路212號'},
-  {name:'米奇相機維修', phone:'04-24375282', addr:'台中市北屯區景賢南二路333號'}
+  {name:'米奇相機維修', phone:'04-24375282', addr:'台中市北屯區景賢南二路333號'},
+  {name:'益昌相機修理（候選店）', phone:'07-2610408', addr:'800高雄市新興區永寧里忠孝一路124號'}
 ];
 function openShopInfo() {
   document.getElementById('shopinfo-msg').textContent = '';
