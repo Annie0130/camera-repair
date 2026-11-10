@@ -1144,11 +1144,13 @@ function updSelUi() {
 }
 function toggleSel(id, on) { on ? selIds.add(id) : selIds.delete(id); updSelUi(); }
 function toggleSelAll(on) { lastList.forEach(o => on ? selIds.add(o.id) : selIds.delete(o.id)); filterOrders(); }
+const CUST_TAG = '【客人的・請優先處理】';
+function isCustomerOwned(o) { return o.owner === '客人的' && o.ownerType !== '親朋好友'; }
 async function copySelected() {
   const list = orders.filter(o => selIds.has(o.id));
   if (!list.length) { setStatus('請先勾選要複製的維修單'); return; }
   const c = v => String(v||'').replace(/[\t\r\n]+/g, ' ').trim();
-  const text = list.map(o => [c(o.model), c(o.serial), c(o.issue), ownerLabel(o)].filter(Boolean).join(' ')).join('\n');
+  const text = list.map(o => (isCustomerOwned(o) ? CUST_TAG + ' ' : '') + [c(o.model), c(o.serial), c(o.issue), ownerLabel(o)].filter(Boolean).join(' ')).join('\n');
   try { await navigator.clipboard.writeText(text); }
   catch (e) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
     try { document.execCommand('copy'); } catch (e2) {} ta.remove(); }
@@ -1526,7 +1528,8 @@ async function copyBatchText() {
   const lines = [...document.querySelectorAll('#b-body tr')].map(tr => {
     const g = c => tr.querySelector(c).value.trim();
     if (!g('.b-model')) return '';
-    return [g('.b-model'), g('.b-serial'), g('.b-issue'), g('.b-owner'), g('.b-refno')].filter(x => x !== '').map(x => x.replace(/\s+/g, ' ')).join(' ');
+    const isCust = g('.b-owner').startsWith('客人');
+    return (isCust ? CUST_TAG + ' ' : '') + [g('.b-model'), g('.b-serial'), g('.b-issue'), g('.b-owner'), g('.b-refno')].filter(x => x !== '').map(x => x.replace(/\s+/g, ' ')).join(' ');
   }).filter((l, i) => l);
   const msg = document.getElementById('b-copy-msg');
   if (!lines.length) { msg.style.color = 'var(--red)'; msg.textContent = '還沒有資料可複製'; return; }
